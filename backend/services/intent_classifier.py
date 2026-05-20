@@ -4,10 +4,11 @@ Extracts: intent, entities (email, book_title, isbn, add_on_name), confidence, q
 Spec Reference: Section 6.4
 """
 import json
+import re
 from openai import OpenAI
 from backend.config import settings
 
-client = OpenAI(api_key=settings.OPENAI_API_KEY)
+client = None if settings.is_mock_mode else OpenAI(api_key=settings.OPENAI_API_KEY)
 
 SYSTEM_PROMPT = """You are an intent extractor for BookLeaf Publishing support system.
 
@@ -56,15 +57,45 @@ def classify_query(user_message: str) -> dict:
     Returns:
         dict with keys: intent, entities, confidence, query_type
     """
+    # Mock mode: heuristic classifier keeps demo runnable without external keys.
+    if settings.is_mock_mode:
+        msg = (user_message or "").lower()
+        if any(w in msg for w in ["lawyer", "legal", "sue", "refund", "unacceptable", "complaint"]):
+            return {"intent": "escalate_human", "entities": {"email": None, "book_title": None, "isbn": None, "add_on_name": None}, "confidence": 0.99, "query_type": "db_query"}
+        email_match = re.search(r"[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}", msg)
+        entities = {"email": email_match.group(0) if email_match else None, "book_title": None, "isbn": None, "add_on_name": None}
+
+        def _intent(intent: str, conf: float, qt: str):
+            return {"intent": intent, "entities": entities, "confidence": conf, "query_type": qt}
+
+        if any(w in msg for w in ["royalty", "earning", "payment"]):
+            return _intent("royalty_status", 0.9, "db_query" if entities["email"] else "kb_query")
+        if any(w in msg for w in ["dashboard", "login", "password", "access"]):
+            return _intent("dashboard_access", 0.9, "kb_query")
+        if any(w in msg for w in ["bestseller", "pr push", "award", "add-on", "addon"]):
+            return _intent("addon_status", 0.9, "db_query" if entities["email"] else "kb_query")
+        if any(w in msg for w in ["author copy", "physical copy", "dispatch", "tracking"]):
+            return _intent("author_copy", 0.9, "db_query" if entities["email"] else "kb_query")
+        if any(w in msg for w in ["sales", "copies sold", "sold"]):
+            return _intent("book_sales", 0.9, "db_query" if entities["email"] else "kb_query")
+        if ("book" in msg and "live" in msg) or any(
+            w in msg for w in ["timeline", "how long", "go live", "live date", "launch"]
+        ):
+            # 0.90 triggers confidence_scorer "clear-case" floor when identity is strong and kb_relevance ~ 0.
+            return _intent("publishing_timeline", 0.90, "db_query" if entities["email"] else "kb_query")
+        if len(msg.strip()) < 6:
+            return _intent("unknown", 0.3, "kb_query")
+        return _intent("general_faq", 0.75, "kb_query")
+
     response = client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[
             {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": user_message}
+            {"role": "user", "content": user_message},
         ],
         response_format={"type": "json_object"},
         temperature=0.1,
-        max_tokens=300
+        max_tokens=300,
     )
 
     result = json.loads(response.choices[0].message.content)

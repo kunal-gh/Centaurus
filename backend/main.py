@@ -10,8 +10,10 @@ Endpoints:
 Spec Reference: Section 7.1
 """
 import traceback
-from fastapi import FastAPI
+from fastapi import Body, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from starlette.responses import RedirectResponse
 
 from backend.models import ChatRequest, ChatResponse, IdentityRequest
 from backend.database import get_supabase
@@ -40,6 +42,15 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Serve the minimal demo UI (no build step)
+# Visit: http://localhost:8000/app/
+app.mount("/app", StaticFiles(directory="web", html=True), name="web")
+
+
+@app.get("/")
+async def root():
+    return RedirectResponse(url="/app/")
 
 
 # ============================================================
@@ -141,6 +152,19 @@ async def chat(req: ChatRequest):
         # Resolve email: prefer explicit request field, fall back to LLM-extracted entity
         resolved_email = req.user_email or (entities.get("email") if entities else None)
         resolved_phone = req.user_phone
+
+        # Classifiers only see `req.message`; API/channel may still supply email/phone fields.
+        # If we would wrongly skip Supabase for record-level intents, force a DB lookup when identifiers exist.
+        _record_intents = {
+            "publishing_timeline",
+            "royalty_status",
+            "dashboard_access",
+            "addon_status",
+            "author_copy",
+            "book_sales",
+        }
+        if (resolved_email or resolved_phone) and intent in _record_intents and query_type == "kb_query":
+            query_type = "db_query"
 
         # --------------------------------------------------------
         # Stage 2: Identity Resolution
@@ -370,6 +394,43 @@ async def identity_review():
         return {"pending_review": mappings.data}
     except Exception as e:
         return {"pending_review": [], "error": str(e)}
+
+
+@app.post("/admin/identity-review/{mapping_id}/approve")
+async def approve_identity_mapping(mapping_id: str, body: dict = Body(default={})):
+    """
+    Approves a pending identity mapping by marking it verified.
+    """
+    try:
+        res = (
+            get_supabase()
+            .table("identity_mappings")
+            .update({"verified": True})
+            .eq("id", mapping_id)
+            .execute()
+        )
+        return {"ok": True, "updated": res.data, "note": body.get("note")}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+@app.post("/admin/identity-review/{mapping_id}/reject")
+async def reject_identity_mapping(mapping_id: str, body: dict = Body(default={})):
+    """
+    Rejects a pending identity mapping by marking it verified.
+    (Schema is minimal; 'verified=true' removes it from the review queue.)
+    """
+    try:
+        res = (
+            get_supabase()
+            .table("identity_mappings")
+            .update({"verified": True})
+            .eq("id", mapping_id)
+            .execute()
+        )
+        return {"ok": True, "updated": res.data, "note": body.get("note")}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
 
 
 # ============================================================

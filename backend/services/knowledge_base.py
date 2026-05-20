@@ -9,7 +9,7 @@ import numpy as np
 from openai import OpenAI
 from backend.config import settings
 
-client = OpenAI(api_key=settings.OPENAI_API_KEY)
+client = None if settings.is_mock_mode else OpenAI(api_key=settings.OPENAI_API_KEY)
 
 # Global in-memory cache — populated once at startup, reused for all queries
 _KB_ENTRIES = None
@@ -20,6 +20,9 @@ def _get_embedding(text: str) -> list:
     Generates embedding vector using OpenAI text-embedding-3-small.
     Input is truncated to 8000 chars as a safety measure.
     """
+    if settings.is_mock_mode:
+        raise RuntimeError("Embeddings are disabled in mock mode")
+
     response = client.embeddings.create(
         model="text-embedding-3-small",
         input=text[:8000]  # Safety truncation
@@ -86,6 +89,11 @@ def build_kb_cache(
             _KB_ENTRIES = json.load(f)
         return _KB_ENTRIES
 
+    # In mock mode, we avoid external embedding calls and keep KB as raw chunks.
+    if settings.is_mock_mode:
+        _KB_ENTRIES = [{"text": c, "embedding": None} for c in _chunk_markdown(file_path)]
+        return _KB_ENTRIES
+
     chunks = _chunk_markdown(file_path)
     if not chunks:
         _KB_ENTRIES = []
@@ -119,6 +127,21 @@ def search_knowledge_base(query: str, top_k: int = 1) -> tuple:
     kb = build_kb_cache()
     if not kb:
         return None, 0.0
+
+    # Mock mode: keyword overlap scoring on chunk text.
+    if settings.is_mock_mode:
+        q = (query or "").lower()
+        q_terms = {t for t in q.replace("?", " ").replace(".", " ").split() if len(t) > 2}
+        best_text, best_score = None, 0.0
+        for entry in kb:
+            c = entry["text"]
+            c_terms = {t for t in c.lower().replace("?", " ").replace(".", " ").split() if len(t) > 2}
+            overlap = len(q_terms & c_terms) if q_terms else 0
+            score = overlap / max(len(q_terms), 1)
+            if score > best_score:
+                best_score = score
+                best_text = c
+        return (best_text if best_score >= 0.15 else None), float(min(max(best_score, 0.0), 1.0))
 
     query_embedding = _get_embedding(query)
     scored = []

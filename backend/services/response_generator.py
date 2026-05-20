@@ -7,7 +7,7 @@ import json
 from openai import OpenAI
 from backend.config import settings
 
-client = OpenAI(api_key=settings.OPENAI_API_KEY)
+client = None if settings.is_mock_mode else OpenAI(api_key=settings.OPENAI_API_KEY)
 
 RESPONSE_SYSTEM_PROMPT = """You are a friendly, professional customer support assistant for BookLeaf Publishing.
 Write a short, warm reply (2-4 sentences maximum) that directly answers the author question.
@@ -40,6 +40,40 @@ def generate_response(
     Returns:
         str: Natural language response (2-4 sentences, stripped)
     """
+    # Mock mode: deterministic, template-based responses.
+    if settings.is_mock_mode:
+        book = None
+        if db_data and db_data.get("books"):
+            book = db_data["books"][0]
+        if kb_context:
+            return f"{kb_context.strip()}\n\nIf you’d like, share your registered email and I can also check your specific status."
+        if not book:
+            return "I couldn’t find a matching record with the details provided. If you share your registered email or phone number, I can check your book status right away."
+
+        title = book.get("book_title", "your book")
+        if intent == "publishing_timeline":
+            live = book.get("book_live_date")
+            if live:
+                return f"Good news — **{title}** is live as of {live}. If you want, I can also share author copy and add-on status."
+            return f"Thanks for checking in. **{title}** isn’t marked live yet. If you share your latest submission date, I can help estimate the remaining timeline."
+        if intent == "royalty_status":
+            status = book.get("royalty_status", "pending")
+            return f"Your royalty status for **{title}** is currently **{status}**. If you want, I can help you with next steps based on that status."
+        if intent == "addon_status":
+            addons = book.get("add_on_services") or []
+            addons_text = ", ".join(addons) if addons else "no add-ons"
+            return f"For **{title}**, I can see **{addons_text}** on your account. Want me to explain what each add-on covers and typical timelines?"
+        if intent == "author_copy":
+            dispatched = bool(book.get("author_copy_dispatched"))
+            when = book.get("author_copy_dispatch_date")
+            if dispatched:
+                return f"Your author copy for **{title}** was dispatched on {when or 'a recent date'}. If you share your city, I can estimate delivery timelines."
+            return f"Your author copy for **{title}** isn’t marked as dispatched yet. Typically, copies go out within 7–10 business days of the book going live."
+        if intent == "book_sales":
+            sales = book.get("sales_count", 0)
+            return f"Your current recorded sales count for **{title}** is **{sales}**. If you want, I can explain how often sales data updates and where to view it."
+        return "Thanks — I can help with timelines, royalties, dashboard access, add-ons, author copies, and sales. Tell me which one you’d like to check."
+
     context_parts = []
 
     if db_data and db_data.get("author"):

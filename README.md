@@ -1,4 +1,4 @@
-# BookLeaf Publishing — AI Support Automation Suite 📚
+# BookLeaf Publishing — AI Support Automation Suite
 
 An intelligent, production-ready hybrid automation suite designed to streamline BookLeaf's author support queries across various communication channels (Email, WhatsApp, Instagram, Web) with a robust multi-signal identity resolution pipeline, confidence-based human handoff gates, and persistent audit trail logging.
 
@@ -27,27 +27,31 @@ The system employs a **hybrid architecture** that balances low-code/no-code oper
 | **Embeddings** | text-embedding-3-small | Knowledge base RAG vectorization and query embedding | Matches OpenAI ecosystem pattern; cheapest and highly effective model. |
 | **Vector Search** | NumPy | In-memory cosine similarity search on cached KB embeddings | Zero infrastructure overhead; blisteringly fast search over static KB documents. |
 | **Fuzzy Matching** | rapidfuzz | Name similarity scoring | Fast, C-optimized drop-in replacement for thefuzz/fuzzywuzzy. |
-| **User Interface** | Streamlit | Chat UI with metadata visualization and escalation banners | 25 lines of code to a working premium web dashboard for interactive testing. |
+| **User Interface** | Static Web UI (HTML/CSS/JS) served by FastAPI | Chat UI with metadata visualization, identity demo, and admin review queue | No build step; reviewers can run `uvicorn` and use `http://localhost:8000/app/`. |
 
 ---
 
 ## 4. Setup Instructions
-Get the system running locally in three commands:
+Get the system running locally.
 
 ```bash
-# 1. Install dependencies
+# 1) Install dependencies
 pip install -r requirements.txt
 
-# 2. Start the FastAPI Brain Server
+# 2) Start the FastAPI Brain Server (also serves the web UI at /app)
 uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
-
-# 3. Start the Streamlit Web UI (in a new terminal)
-streamlit run frontend/chat_ui.py --server.port 8501
 ```
 
 > [!NOTE]
-> Make sure to copy `.env.example` to `.env` and fill in your `SUPABASE_URL`, `SUPABASE_KEY`, and `OPENAI_API_KEY`.
-> To expose the local FastAPI server to n8n Cloud, run `ngrok http 8000` and replace the webhook URL in the n8n HTTP Request node with the public ngrok address.
+> - **Mock mode (recommended for reviewers):** you can run without any external keys. If `OPENAI_API_KEY` is missing or set to `test`, the backend uses deterministic mock logic and an in-memory Supabase-like store.
+> - **Real mode:** copy `.env.example` to `.env` and fill `SUPABASE_URL`, `SUPABASE_KEY`, `OPENAI_API_KEY`.
+> - To expose the local FastAPI server to n8n Cloud, run `ngrok http 8000` and replace the webhook URL in the n8n HTTP Request node with the public ngrok address.
+
+### Web UI
+- **Chat + Identity + Admin demo:** `http://localhost:8000/app/`
+- **Swagger:** `http://localhost:8000/docs`
+
+> The UI is intentionally styled to match BookLeaf’s website theme (pink + teal, rounded cards) so it feels like a native internal tool.
 
 ---
 
@@ -106,6 +110,12 @@ Retrieves pending unverified identity resolutions for administrative review.
     "pending_review": []
   }
   ```
+
+### 3a. `POST /admin/identity-review/{mapping_id}/approve`
+Marks a pending mapping as verified (removes it from the queue).
+
+### 3b. `POST /admin/identity-review/{mapping_id}/reject`
+Rejects a pending mapping (also marks as verified to remove from the queue).
 
 ### 4. `GET /health`
 Returns the operational health status and verifies Supabase database connectivity.
@@ -174,12 +184,12 @@ The n8n workflow canvas manages routing, escalation checks, and direct audit tra
 
 ![n8n Workflow](docs/n8n_workflow.png)
 
-*The raw workflow JSON is fully exported and available for import at [n8n_workflows/bookleaf_gateway.json](file:///c:/Users/kunal/OneDrive/Desktop/Book-tool/bookleaf-ai-automation/n8n_workflows/bookleaf_gateway.json).*
+*The raw workflow JSON is fully exported and available for import at `n8n_workflows/bookleaf_gateway.json`.*
 
 ---
 
 ## 11. Test Cases
-Eleven test scenarios are prepared to validate the entire matrix of operations and error scenarios. You can run them instantly using any REST Client (e.g., the VS Code REST Client plugin) with [tests/test_queries.http](file:///c:/Users/kunal/OneDrive/Desktop/Book-tool/bookleaf-ai-automation/tests/test_queries.http):
+Eleven test scenarios are prepared to validate the full matrix of operations and error scenarios. You can run them using any REST Client with `tests/test_queries.http`:
 
 1. **Happy path — book live** (Sara Johnson gets direct book status)
 2. **Royalty on_hold** (Rahul Das gets empathetic response directing him to support)

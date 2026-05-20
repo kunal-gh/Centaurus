@@ -15,7 +15,7 @@ from rapidfuzz import fuzz
 from openai import OpenAI
 from backend.config import settings
 
-client = OpenAI(api_key=settings.OPENAI_API_KEY)
+client = None if settings.is_mock_mode else OpenAI(api_key=settings.OPENAI_API_KEY)
 
 
 def _normalize_phone(phone: str) -> str:
@@ -117,6 +117,21 @@ Use these thresholds:
 - probability >= 0.85 -> auto_link
 - probability >= 0.60 -> verify_manually
 - probability < 0.60  -> create_new"""
+
+    if settings.is_mock_mode:
+        # Deterministic fallback without external calls.
+        prob = min(max(fuzzy_score / 100.0, 0.0), 1.0)
+        if prob >= 0.85:
+            action = "auto_link"
+        elif prob >= 0.60:
+            action = "verify_manually"
+        else:
+            action = "create_new"
+        return {
+            "same_person_probability": prob,
+            "reasoning": "Mock verifier: probability derived from fuzzy score",
+            "recommended_action": action,
+        }
 
     response = client.chat.completions.create(
         model="gpt-4o-mini",
