@@ -1,0 +1,121 @@
+### Test Case 1: Happy path — book live
+POST http://localhost:8000/chat
+Content-Type: application/json
+
+{
+  "channel": "web",
+  "message": "Is my book live yet?",
+  "user_email": "sara.johnson@xyz.com"
+}
+
+###
+
+### Test Case 2: Royalty on_hold (empathetic escalation checking)
+POST http://localhost:8000/chat
+Content-Type: application/json
+
+{
+  "channel": "email",
+  "message": "When will I get my royalty payment?",
+  "user_email": "rahul.das@outlook.com"
+}
+
+###
+
+### Test Case 3: Author copy not dispatched
+POST http://localhost:8000/chat
+Content-Type: application/json
+
+{
+  "channel": "web",
+  "message": "Where is my author copy?",
+  "user_email": "priya.sharma@yahoo.com"
+}
+
+###
+
+### Test Case 4: Add-on status
+POST http://localhost:8000/chat
+Content-Type: application/json
+
+{
+  "channel": "web",
+  "message": "What's the status of my Bestseller Package?",
+  "user_email": "sara.johnson@xyz.com"
+}
+
+###
+
+### Test Case 5: KB-only (no email)
+POST http://localhost:8000/chat
+Content-Type: application/json
+
+{
+  "channel": "web",
+  "message": "How long does it take for a book to go live?"
+}
+
+###
+
+### Test Case 6: ESCALATION — gibberish
+POST http://localhost:8000/chat
+Content-Type: application/json
+
+{
+  "channel": "web",
+  "message": "thing book money want when?"
+}
+
+###
+
+### Test Case 7: ESCALATION — legal threat
+POST http://localhost:8000/chat
+Content-Type: application/json
+
+{
+  "channel": "whatsapp",
+  "message": "I'm contacting my lawyer.",
+  "user_email": "vikram.nair@gmail.com"
+}
+
+###
+
+### Test Case 8: No match — unknown email
+POST http://localhost:8000/chat
+Content-Type: application/json
+
+{
+  "channel": "web",
+  "message": "Is my book live?",
+  "user_email": "nobody@nowhere.com"
+}
+
+###
+
+### Test Case 9: Multiple books (disambiguation check)
+POST http://localhost:8000/chat
+Content-Type: application/json
+
+{
+  "channel": "web",
+  "message": "What is my royalty status?",
+  "user_email": "nisha.patel@hotmail.com"
+}
+
+###
+
+### Test Case 10: Identity resolve Sara (4 signals auto-link check)
+POST http://localhost:8000/identity/resolve
+Content-Type: application/json
+
+{
+  "email": "sara.johnson@xyz.com",
+  "phone": "+919876543210",
+  "name": "Sara J.",
+  "instagram": "@sarapoetry23"
+}
+
+###
+
+### Test Case 11: Health check
+GET http://localhost:8000/health
