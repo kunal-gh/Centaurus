@@ -163,6 +163,26 @@ async def chat(req: ChatRequest):
             author_id = identity_result.get("matched_author_id")
             log_entry["author_id"] = author_id
 
+            # Save borderline case to identity_mappings table for manual review
+            if identity_result.get("action") == "verify_manually" and author_id:
+                platform_identifier = (
+                    resolved_email or 
+                    resolved_phone or 
+                    req.user_instagram or 
+                    req.user_name or 
+                    "unknown"
+                )
+                try:
+                    get_supabase().table("identity_mappings").insert({
+                        "author_id": author_id,
+                        "platform": req.channel,
+                        "platform_identifier": platform_identifier,
+                        "match_confidence": identity_conf,
+                        "verified": False
+                    }).execute()
+                except Exception:
+                    pass  # Fail-safe: ignore DB logging error to prevent pipeline failure
+
         # --------------------------------------------------------
         # Stage 3: Data Retrieval
         # --------------------------------------------------------
@@ -304,6 +324,27 @@ async def resolve_identity(req: IdentityRequest):
     """
     all_profiles = get_supabase().table("authors").select("*").execute().data
     result = identity_unifier.unify_identity(req.dict(), all_profiles)
+
+    # Save borderline matches for review
+    if result.get("action") == "verify_manually" and result.get("matched_author_id"):
+        platform_identifier = (
+            req.email or 
+            req.phone or 
+            req.instagram or 
+            req.name or 
+            "unknown"
+        )
+        try:
+            get_supabase().table("identity_mappings").insert({
+                "author_id": result["matched_author_id"],
+                "platform": "api",
+                "platform_identifier": platform_identifier,
+                "match_confidence": result["confidence"],
+                "verified": False
+            }).execute()
+        except Exception:
+            pass  # fail-safe
+
     return result
 
 
