@@ -208,4 +208,8 @@ The system ships with two fully functional frontends and a self-documenting REST
   <img src="docs/video_preview.jpg" alt="Click to Watch Loom Walkthrough" width="700"/>
 </a>
 
+<br/>
+
+**👆 Click the image above — or [▶️ watch directly on Loom](https://www.loom.com/share/9f8a04ead37b4d55b3baf077acd0fa74)**
+
 </div>
