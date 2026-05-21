@@ -169,6 +169,37 @@ The system includes 11 comprehensive REST client test scenarios (`tests/test_que
 
 ---
 
+## 📸 UI Showcase
+
+The system ships with two fully functional frontends and a self-documenting REST API — each serving a distinct purpose in the evaluation workflow.
+
+### 1️⃣ Primary Web Dashboard — `http://localhost:8000/app/`
+> The all-in-one admin and demo sandbox built with vanilla HTML, CSS, and JavaScript, served directly from FastAPI. It features a **hero banner** with quick-stats (80% confidence gate, 3 demo tabs, 2 data sources, 1 unified author profile), an **Identity Signals panel** on the left where you enter Email, Phone, Dashboard Name and Instagram to feed the multi-signal resolution engine, and a **live chat area** on the right with clickable demo prompts. This is the primary interface for evaluating the full 8-stage pipeline.
+
+<div align="center">
+  <img src="docs/screenshots/Screenshot 2026-05-21 181947.png" alt="Primary Web Dashboard" width="800"/>
+</div>
+
+---
+
+### 2️⃣ Streamlit Chat UI — `http://localhost:8501`
+> A Python-native rapid prototype frontend built with Streamlit. The left sidebar collects the four identity signals (Registered Email, WhatsApp/Phone, Dashboard Name, Instagram Handle) with a privacy disclaimer. The central panel renders the **BookLeaf Author Support** chat interface where authors can ask about book status, royalties, author copies, or add-on services. This demonstrates how quickly a production-ready AI support chat can be deployed using Streamlit as the customer-facing layer.
+
+<div align="center">
+  <img src="docs/screenshots/Screenshot 2026-05-21 181957.png" alt="Streamlit Chat UI" width="800"/>
+</div>
+
+---
+
+### 3️⃣ FastAPI Swagger Docs — `http://localhost:8000/docs`
+> Auto-generated interactive API documentation via FastAPI's built-in OpenAPI/Swagger integration. It exposes all **7 REST endpoints**: `GET /` (root), `POST /chat` (the full 8-stage pipeline), `POST /identity/resolve` (standalone identity unification), `GET /admin/identity-review` (fetch borderline matches for human review), `POST /admin/identity-review/{id}/approve`, `POST /admin/identity-review/{id}/reject`, and `GET /health`. Reviewers can test every endpoint directly from this page without any external tools. All request/response schemas (`ChatRequest`, `ChatResponse`, `IdentityRequest`) are fully documented below the endpoint list.
+
+<div align="center">
+  <img src="docs/screenshots/Screenshot 2026-05-21 182007.png" alt="FastAPI Swagger API Docs" width="800"/>
+</div>
+
+---
+
 <div align="center">
 
 ## 🎥 Loom Video Walkthrough
