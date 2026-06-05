@@ -1,16 +1,11 @@
 -- ============================================================
--- BookLeaf AI Automation — Supabase Schema
+-- Centaurus - Supabase Schema
 -- Execute this FIRST, before seed.sql
--- Spec Reference: Section 5.1
 -- ============================================================
 
--- Enable required extensions (harmless if not available on free tier)
+-- Enable required extensions when available.
 -- create extension if not exists vector;
 
--- ============================================================
--- TABLE 1: authors
--- Purpose: Unified author profiles across all platforms
--- ============================================================
 create table authors (
     id uuid primary key default gen_random_uuid(),
     email text unique,
@@ -20,12 +15,8 @@ create table authors (
     created_at timestamptz default now()
 );
 
-comment on table authors is 'Master identity table for all authors across email, WhatsApp, dashboard, and Instagram';
+comment on table authors is 'Master identity table for author profiles across channels.';
 
--- ============================================================
--- TABLE 2: books
--- Purpose: Operational status data for each book
--- ============================================================
 create table books (
     id uuid primary key default gen_random_uuid(),
     author_id uuid references authors(id) on delete cascade,
@@ -40,12 +31,8 @@ create table books (
     author_copy_dispatch_date date
 );
 
-comment on table books is 'Mocked internal publishing status data linked to authors';
+comment on table books is 'Operational publishing status data linked to author profiles.';
 
--- ============================================================
--- TABLE 3: query_logs
--- Purpose: MANDATORY audit trail of every bot interaction
--- ============================================================
 create table query_logs (
     id uuid primary key default gen_random_uuid(),
     created_at timestamptz default now(),
@@ -60,12 +47,8 @@ create table query_logs (
     error_info text
 );
 
-comment on table query_logs is 'Mandatory logging table for all queries, responses, and escalation events';
+comment on table query_logs is 'Audit trail for user questions, responses, and escalation events.';
 
--- ============================================================
--- TABLE 4: identity_mappings
--- Purpose: Intermediate task — platform linkage records
--- ============================================================
 create table identity_mappings (
     id uuid primary key default gen_random_uuid(),
     author_id uuid references authors(id),
@@ -76,12 +59,8 @@ create table identity_mappings (
     created_at timestamptz default now()
 );
 
-comment on table identity_mappings is 'Cross-platform identity linkage with confidence scoring for manual review';
+comment on table identity_mappings is 'Borderline identity matches waiting for reviewer confirmation.';
 
--- ============================================================
--- TABLE 5: knowledge_base
--- Purpose: Structured FAQ/policy storage (optional backup to in-memory RAG)
--- ============================================================
 create table knowledge_base (
     id uuid primary key default gen_random_uuid(),
     category text,
@@ -89,4 +68,4 @@ create table knowledge_base (
     answer text
 );
 
-comment on table knowledge_base is 'Structured knowledge base entries for RAG pipeline (optional backup to in-memory)';
+comment on table knowledge_base is 'Structured FAQ backup store used alongside the operations manual.';

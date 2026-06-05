@@ -1,7 +1,5 @@
 """
 Composite confidence calculation and escalation decision engine.
-This is the MOST CRITICAL file for the assignment.
-Spec Reference: Section 6.8
 """
 
 

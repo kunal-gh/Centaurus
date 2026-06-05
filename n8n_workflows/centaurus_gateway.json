@@ -1,10 +1,10 @@
 {
-  "name": "BookLeaf_Author_Query_Gateway",
+  "name": "Centaurus_Query_Gateway",
   "nodes": [
     {
       "parameters": {
         "httpMethod": "POST",
-        "path": "bookleaf-gateway",
+        "path": "centaurus-gateway",
         "responseMode": "lastNode",
         "options": {}
       },
@@ -13,7 +13,7 @@
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
       "position": [240, 300],
-      "webhookId": "bookleaf-gateway"
+      "webhookId": "centaurus-gateway"
     },
     {
       "parameters": {
@@ -108,7 +108,7 @@
           "string": [
             {
               "name": "response",
-              "value": "I'm not fully confident about this request. I've escalated it to a BookLeaf support specialist who will respond within 24 business hours."
+              "value": "I'm not fully confident about this request. I've escalated it to a Centaurus reviewer who will respond within 24 business hours."
             }
           ],
           "boolean": [
@@ -290,14 +290,14 @@
     "templateCredsSetupCompleted": false
   },
   "pinData": {},
-  "versionId": "bookleaf-v1-0-0",
+  "versionId": "centaurus-v1-0-0",
   "triggerCount": 0,
   "tags": [
     {
       "createdAt": "2026-05-20T00:00:00.000Z",
       "updatedAt": "2026-05-20T00:00:00.000Z",
-      "id": "bookleaf-tag",
-      "name": "bookleaf"
+      "id": "centaurus-tag",
+      "name": "centaurus"
     }
   ]
 }

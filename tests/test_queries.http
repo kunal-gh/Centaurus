@@ -40,7 +40,7 @@ Content-Type: application/json
 
 {
   "channel": "web",
-  "message": "What's the status of my Bestseller Package?",
+  "message": "What's the status of my Launch Sprint?",
   "user_email": "sara.johnson@xyz.com"
 }
 

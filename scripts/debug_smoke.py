@@ -1,5 +1,5 @@
-# Assignment core-functionality smoke (no debug-session file logging).
-# Run from:  cd bookleaf-ai-automation && python scripts/debug_assignment_smoke.py
+# Core-functionality smoke check (no debug-session file logging).
+# Run from: python scripts/debug_smoke.py
 # Uses OPENAI_API_KEY=test + empty Supabase env → in-memory mock.
 
 from __future__ import annotations
@@ -82,7 +82,7 @@ def main() -> int:
     assert len(qrows) >= 3, len(qrows)
     print("OK  query_logs persisted")
 
-    print("\nAll assignment smoke checks passed.")
+    print("\nAll core smoke checks passed.")
     return 0
 
 

@@ -74,7 +74,7 @@ def load_mock_tables() -> Dict[str, List[Dict[str, Any]]]:
             "final_submission_date": str(date(2025, 10, 15)),
             "book_live_date": str(date(2025, 11, 20)),
             "royalty_status": "processing",
-            "add_on_services": ["Bestseller Package", "PR Push"],
+            "add_on_services": ["Launch Sprint", "Media Relay"],
             "sales_count": 1240,
             "author_copy_dispatched": True,
             "author_copy_dispatch_date": str(date(2025, 11, 25)),
@@ -100,7 +100,7 @@ def load_mock_tables() -> Dict[str, List[Dict[str, Any]]]:
             "final_submission_date": str(date(2025, 9, 1)),
             "book_live_date": str(date(2025, 10, 5)),
             "royalty_status": "paid",
-            "add_on_services": ["Award Submission"],
+            "add_on_services": ["Awards Circuit"],
             "sales_count": 340,
             "author_copy_dispatched": False,
             "author_copy_dispatch_date": None,
@@ -113,7 +113,7 @@ def load_mock_tables() -> Dict[str, List[Dict[str, Any]]]:
             "final_submission_date": str(date(2025, 8, 10)),
             "book_live_date": str(date(2025, 9, 15)),
             "royalty_status": "on_hold",
-            "add_on_services": ["Bestseller Package"],
+            "add_on_services": ["Launch Sprint"],
             "sales_count": 876,
             "author_copy_dispatched": True,
             "author_copy_dispatch_date": str(date(2025, 9, 20)),
@@ -139,7 +139,7 @@ def load_mock_tables() -> Dict[str, List[Dict[str, Any]]]:
             "final_submission_date": str(date(2025, 7, 15)),
             "book_live_date": str(date(2025, 8, 20)),
             "royalty_status": "paid",
-            "add_on_services": ["PR Push"],
+            "add_on_services": ["Media Relay"],
             "sales_count": 520,
             "author_copy_dispatched": True,
             "author_copy_dispatch_date": str(date(2025, 8, 25)),
@@ -152,7 +152,7 @@ def load_mock_tables() -> Dict[str, List[Dict[str, Any]]]:
             "final_submission_date": str(date(2026, 1, 10)),
             "book_live_date": None,
             "royalty_status": "pending",
-            "add_on_services": ["Bestseller Package", "Award Submission"],
+            "add_on_services": ["Launch Sprint", "Awards Circuit"],
             "sales_count": 0,
             "author_copy_dispatched": False,
             "author_copy_dispatch_date": None,
@@ -171,7 +171,7 @@ def load_mock_tables() -> Dict[str, List[Dict[str, Any]]]:
             "id": "20000000-0000-0000-0000-000000000002",
             "category": "dashboard",
             "question": "How do I access my dashboard?",
-            "answer": "The author dashboard is at dashboard.bookleafpub.com. Login uses your registered email.",
+            "answer": "Use the Centaurus workspace link sent during onboarding and sign in with your registered email.",
         },
     ]
 
@@ -182,4 +182,3 @@ def load_mock_tables() -> Dict[str, List[Dict[str, Any]]]:
         "identity_mappings": [],
         "knowledge_base": knowledge_base,
     }
-

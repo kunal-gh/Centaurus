@@ -1,111 +1,234 @@
-<div align="center">
+# Centaurus Technical Architecture
 
-# 🏛️ BookLeaf AI Support Automation: Technical Architecture & System Design
+## Overview
 
-**A Comprehensive Guide for Technical Evaluators and Non-Technical Stakeholders**
+Centaurus is a domain-focused knowledge worker platform for publishing operations. The current repository implements a production-minded foundation that combines:
 
-</div>
+- structured operational lookup
+- lightweight retrieval over a policy manual
+- multi-signal identity matching
+- confidence-based escalation
+- a reviewer queue for ambiguous cases
 
----
+That foundation is intentionally simple enough to run in mock mode, but the system boundaries are already shaped so it can grow into a hybrid RAG, GraphRAG, and multi-agent platform without a ground-up rewrite.
 
-## 📖 1. The Big Picture (Plain English Overview)
+## Product Boundary
 
-Imagine BookLeaf Publishing has a super-smart receptionist working 24/7. Authors are constantly messaging this receptionist on WhatsApp, Email, and Instagram asking things like, *"Is my book live yet?"* or *"When will I get my royalties?"*. 
+Centaurus answers questions in two modes:
 
-Normally, a human would have to:
-1. Figure out who the author is (since they might email from a different address than their WhatsApp number).
-2. Understand what the author is asking.
-3. Look up the answer in a database or a rulebook.
-4. Reply politely.
+- record-aware mode for author-specific questions such as release status, royalties, copies, sales, and service enrollments
+- knowledge mode for policy and process questions that can be answered from the operations manual
 
-This project **automates that entire process**. 
+The current domain model centers on:
 
-It catches messages from any platform, uses Artificial Intelligence to instantly understand the question, merges the author's different profiles together into one identity, retrieves the correct data, and replies. **However, it has a strict safety rule:** if the AI is ever less than 80% confident about the answer, it stops immediately and hands the conversation over to a real human. This ensures BookLeaf never gives authors wrong information about their money or book timelines.
+- `authors`
+- `books`
+- `identity_mappings`
+- `query_logs`
+- `knowledge_base`
 
----
+This is narrow enough for a portfolio project and rich enough to demonstrate real retrieval, graph expansion, agent routing, and human review patterns later.
 
-## 🛠️ 2. The Technology Stack
+## Runtime Components
 
-We chose a "Hybrid Architecture." This means we use visual, drag-and-drop tools for the easy routing parts, and custom-written code for the heavy, intelligent tasks. 
+### 1. FastAPI control plane
 
-* **n8n (No-Code Automator):** Think of this as the traffic cop. It catches incoming messages from WhatsApp/Instagram and forwards them to our custom API.
-* **FastAPI (Python):** The "Brain" of the operation. This is custom code that runs the logic pipeline. It is blazingly fast and highly customizable.
-* **Supabase (PostgreSQL):** The filing cabinet. A modern database where we store author profiles, book statuses, and a log of every conversation.
-* **OpenAI (GPT-4o-mini & text-embedding-3-small):** The artificial intelligence. Used to read the intent behind messages and draft polite replies.
-* **Vercel / Ngrok:** For public deployment. The API is plug-and-play ready to be hosted on Vercel so anyone on the internet can test it.
+`backend/main.py` is the entry point. It exposes the public API, mounts the browser UI, warms the retrieval cache at startup, and coordinates the request lifecycle.
 
----
+### 2. Query understanding
 
-## 🧩 3. Module-by-Module Breakdown
+`backend/services/intent_classifier.py` converts free-form text into:
 
-### Module A: The Channel Gateway (n8n)
-* **What it does:** It listens to different communication channels. When a message arrives, it standardizes it into a single format (JSON) and sends it to our API Brain. 
-* **Key Function:** It also listens for the response. If the API Brain says "Escalate to Human," n8n can route that ticket to a human dashboard (like Zendesk or Slack).
+- intent
+- extracted entities
+- query type
+- confidence
 
-### Module B: The API Brain (FastAPI)
-* **What it does:** This is where the magic happens. It exposes several "endpoints" (URLs that other computers can talk to):
-  * `/chat`: The main pipeline that answers questions.
-  * `/identity/resolve`: A specific tool just for merging author identities.
-  * `/admin/identity-review`: A dashboard feed for human managers to review borderline identity matches.
-  * `/health`: A quick pulse check to ensure the database is online.
-* **Plug-and-Play AI:** The API is designed so that adding a real OpenAI API Key instantly upgrades the system from "Mock/Test Mode" to live AI reasoning without rewriting a single line of code.
+It supports a deterministic mock path and a model-backed path.
 
-### Module C: The Database (Supabase)
-* **What it does:** Stores four main tables:
-  1. `authors`: Names, emails, phones, and Instagram handles.
-  2. `books`: Titles, ISBNs, final submission dates, live dates, and royalty statuses.
-  3. `identity_mappings`: The administrative queue where borderline identity matches wait for human approval.
-  4. `query_logs`: An un-deletable audit trail of every single question asked and answer given.
+### 3. Identity resolution
 
----
+`backend/services/identity_unifier.py` resolves noisy identities across:
 
-## 🛤️ 4. The 8-Stage Query Pipeline (Operation by Operation)
+- email
+- phone
+- dashboard name
+- Instagram handle
 
-When an author sends a message, it travels through an exact 8-step assembly line inside `backend/main.py`:
+The resolver uses a weighted scorer first and a model-assisted review step only for borderline cases.
 
-#### Stage 1: Intent Classification (`intent_classifier.py`)
-* **Operation:** Reads the message and categorizes it. 
-* **Functions:** Uses OpenAI in "JSON Mode" to extract variables. For example, if the message is *"When is Echoes of Srinagar live?"*, it extracts: `Intent: publishing_timeline`, `Entities: {Book: "Echoes of Srinagar"}`.
+### 4. Structured record retrieval
 
-#### Stage 2: Identity Resolution (`identity_unifier.py`)
-* **Operation:** Figures out exactly who is messaging. It compares the incoming email or phone number against the database. If they don't match perfectly, it uses fuzzy logic (like autocorrect) to see if it's a close match.
+`backend/services/data_retriever.py` fetches author and book records from Supabase and handles:
 
-#### Stage 3: Data Retrieval (`data_retriever.py`)
-* **Operation:** Reaches into Supabase and grabs the author's record and their book data.
-* **Edge Case Handling:** If an author has multiple books but didn't specify which one, the system pauses and asks the author to clarify instead of guessing.
+- exact email lookups
+- normalized phone lookups
+- multi-book ambiguity
+- database failures
 
-#### Stage 4: Knowledge Base Search (`knowledge_base.py`)
-* **Operation:** If the author asks a general policy question (e.g., *"How long does publishing take?"*), the system searches a Markdown rulebook (`bookleaf_kb.md`) using "Vector Math" (cosine similarity) to find the exact paragraph that answers the question.
+### 5. Retrieval layer
 
-#### Stage 5: Confidence Scoring (`confidence_scorer.py`)
-* **Operation:** Grades the system's own homework. It runs a mathematical formula: `(Intent * 0.50) + (Identity * 0.30) + (KB Relevance * 0.20)`.
+`backend/services/knowledge_base.py` currently performs in-memory retrieval over `knowledge_base/centaurus_ops_manual.md`.
 
-#### Stage 6: The Circuit Breaker (Escalation Check)
-* **Operation:** Looks at the final grade from Stage 5. If the score is less than `0.80` (80%), the system pulls the emergency brake. It stops generating a response and triggers a human escalation workflow.
+Today it uses:
 
-#### Stage 7: Response Generation (`response_generator.py`)
-* **Operation:** If the score is safe (>80%), it feeds the database facts to OpenAI and asks it to write a friendly, 2-sentence reply. 
+- section-based chunking
+- local cache hydration at startup
+- keyword overlap in mock mode
+- OpenAI embeddings plus cosine similarity in live mode
 
-#### Stage 8: Audit Logging
-* **Operation:** Saves everything (the user's original message, the bot's reply, the confidence score, and any errors) into the `query_logs` database table.
+This file is the cleanest upgrade seam for Qdrant, hybrid retrieval, reranking, and richer chunk metadata.
 
----
+### 6. Safety gate
 
-## 🔍 5. The Identity Unification Engine
+`backend/services/confidence_scorer.py` computes an overall score from:
 
-Authors are messy—they use different emails, nicknames, and phone numbers. We built a 3-Tier engine to unify them safely:
+- intent confidence
+- identity confidence
+- retrieval relevance
 
-1. **Tier 1 (Auto-Match):** If identifiers match exactly, or if the name is an extremely close typo (checked via the `rapidfuzz` library), the system gives a 100% confidence score and links the profile.
-2. **Tier 2 (Borderline Arbitration):** If the match is iffy (e.g., Name is "Sara J." but database says "Sara Johnson", and they used a new Instagram handle), the system uses the LLM to guess the probability. If it's between 60% and 84%, the system creates a "Pending Review" ticket in the database. A human manager can review this in the Web UI Admin Tab.
-3. **Tier 3 (Create New):** If the score is below 40%, the system safely assumes this is a brand new author and creates a new profile.
+The escalation rules are explicit and deterministic, which makes the current baseline easy to reason about and easy to replace with evaluation-driven thresholds later.
 
----
+### 7. Response synthesis
 
-## 🚀 6. Future Possibilities & Scalability
+`backend/services/response_generator.py` turns record data and retrieval context into user-facing answers. It already separates:
 
-This project is built as a highly scalable foundation. Moving forward, it can be expanded in several ways:
+- input context assembly
+- mock-mode templates
+- model-backed generation
 
-1. **Public Vercel Deployment:** Because the frontend is decoupled and the FastAPI backend is stateless, this entire architecture can be deployed to Vercel or Render with zero code changes. Stakeholders can test it live via a public URL.
-2. **Multi-Agent Systems (LangGraph):** Currently, the pipeline is linear (Step 1 to Step 8). In the future, we can upgrade this to a Multi-Agent system where specialized AI agents (e.g., an "Audit Agent", an "Identity Agent", and a "Support Agent") talk to each other to solve even more complex problems dynamically.
-3. **Enterprise Vector Databases (`pgvector`):** The current Knowledge Base is held in computer memory for speed. If BookLeaf's policy manual grows to thousands of pages, the system is perfectly structured to swap the memory cache for Supabase's `pgvector` database extension for massive scale.
-4. **Direct Channel Webhooks:** While n8n handles routing beautifully, the FastAPI endpoints are fully compliant to receive direct incoming webhooks from Twilio (for WhatsApp) or Meta (for Instagram), bypassing middleware entirely for lower latency.
+That split will make it easier to insert agent outputs, graph evidence, citations, and reviewer decisions later.
+
+### 8. User surfaces
+
+There are two frontends:
+
+- `web/` for the browser demo served by FastAPI
+- `frontend/chat_ui.py` for a Streamlit console
+
+The browser UI is the main product surface and the best place to grow reviewer workflows, observability panels, and future trace visualizations.
+
+## Current Request Flow
+
+The current `/chat` path runs as a linear control flow:
+
+1. classify intent and extract entities
+2. decide whether the request needs records or knowledge retrieval
+3. resolve identity when user signals exist
+4. fetch structured records when the request is record-aware
+5. search the operations manual when the request is knowledge-oriented or when record lookup fails
+6. compute overall confidence
+7. escalate if the safety gate fails
+8. generate the final response
+9. log the interaction
+
+This linear design is appropriate for the current repo state. The next architectural step is not a rewrite for its own sake, but a controlled lift into explicit graph state using LangGraph.
+
+## Data Model
+
+### Authors
+
+Identity anchor across channels.
+
+### Books
+
+Operational facts for publishing, royalties, services, sales, and fulfillment.
+
+### Identity mappings
+
+Reviewer queue for ambiguous identity decisions.
+
+### Query logs
+
+Audit trail for every request and response.
+
+### Knowledge base
+
+Structured backup store for FAQ-like content, complementary to the Markdown manual.
+
+## Safety Model
+
+Centaurus deliberately prefers safe failure over improvised answers.
+
+Escalation happens when:
+
+- a system error occurs
+- the classifier marks the request as human-sensitive
+- intent cannot be determined
+- overall confidence falls below the configured threshold
+
+This keeps the current demo honest and creates a natural bridge into future reviewer decisions, preference learning, and eval-driven policies.
+
+## Upgrade Seams
+
+The codebase is already organized around useful extension seams:
+
+### Retrieval seam
+
+Replace the current Markdown embedding flow with:
+
+- semantic chunking
+- metadata enrichment
+- Qdrant dense plus sparse retrieval
+- reranking
+- citation assembly
+
+### Graph seam
+
+Add a Neo4j layer without breaking the existing relational store. Supabase remains useful for transactional records while Neo4j supports relationship-heavy exploration.
+
+### Orchestration seam
+
+Replace the linear request pipeline with a LangGraph state machine that keeps:
+
+- conversation state
+- retrieved evidence
+- reviewer interrupts
+- routing decisions
+
+### Feedback seam
+
+Turn the existing reviewer queue into a broader human feedback system that stores:
+
+- reviewer decision
+- rationale
+- final edited answer
+- preference signals
+
+### Observability seam
+
+Instrument the app with Langfuse and OpenTelemetry rather than weaving ad hoc logging into business logic.
+
+## Recommended Evolution Path
+
+Centaurus should evolve in this order:
+
+1. Real retrieval first
+2. Graph context second
+3. Agent orchestration third
+4. Feedback capture fourth
+5. Eval and observability fifth
+6. Cloud and infra hardening last
+
+That ordering keeps the repo aligned with current AI engineering demand while avoiding a common portfolio mistake: adding infrastructure complexity before the actual knowledge system is strong.
+
+## Free-Tier Default Stack
+
+The recommended default next stack is:
+
+- FastAPI
+- Supabase
+- Qdrant free tier or self-hosted Docker
+- Neo4j AuraDB Free or local Neo4j
+- LangGraph
+- Langfuse OSS
+- OpenTelemetry
+- DeepEval
+- RAGAS
+
+This preserves low cost while still producing strong, modern platform signals.
+
+## Related Docs
+
+- Product roadmap: `docs/ROADMAP.md`
+- Implementation handoff: `docs/IMPLEMENTATION_HANDOFF.md`

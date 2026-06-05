@@ -3,76 +3,98 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>BookLeaf Customer Query Bot</title>
+    <title>Centaurus | Knowledge Worker Agent Platform</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="/app/styles.css" />
   </head>
   <body>
     <div class="shell">
       <header class="topbar">
         <div class="brand">
-          <div class="logo">BL</div>
+          <div class="logo">CT</div>
           <div>
-            <div class="title">BookLeaf Publishing • Support Automation</div>
-            <div class="subtitle">AI query bot + Supabase status lookup + identity unification</div>
+            <div class="title">Centaurus</div>
+            <div class="subtitle">Knowledge worker agent platform for publishing operations</div>
           </div>
         </div>
-        <nav class="tabs" id="tabs">
-          <button class="tab active" data-tab="chat">Chat</button>
-          <button class="tab" data-tab="identity">Identity</button>
-          <button class="tab" data-tab="admin">Admin</button>
-        </nav>
+        <div class="statusbar">
+          <span class="status-pill">FastAPI control plane</span>
+          <span class="status-pill">Mock-ready</span>
+        </div>
       </header>
 
       <section class="hero">
-        <div class="hero-inner">
-          <div>
-            <div class="kicker">Customer Support Automation</div>
-            <h1 class="hero-title">Publishing support, answered instantly.</h1>
-            <p class="hero-subtitle">
-              Multi-channel-ready query responder backed by Supabase-like status data + a knowledge base,
-              with an 80% confidence gate for safe human handoff.
-            </p>
-          </div>
-          <div class="hero-card">
-            <div class="hero-card-title">Try a demo prompt</div>
-            <div class="hero-card-body">
-              <div class="chip">“Is my book live yet?”</div>
-              <div class="chip">“When will I get my royalty?”</div>
-              <div class="chip">“Where’s my author copy?”</div>
-            </div>
+        <div class="hero-copy">
+          <div class="kicker">Decision-Ready Operations</div>
+          <h1 class="hero-title">One workspace for launches, royalties, records, and reviewer handoff.</h1>
+          <p class="hero-subtitle">
+            Centaurus combines identity signals, structured lookup, retrieval, and an escalation gate into a platform
+            foundation that can evolve into GraphRAG and multi-agent workflows.
+          </p>
+          <div class="hero-points">
+            <span>Identity resolution</span>
+            <span>Record-aware answers</span>
+            <span>Human review queue</span>
           </div>
         </div>
-        <div class="stats">
-          <div class="stat"><div class="stat-num">80%</div><div class="stat-label">Confidence gate</div></div>
-          <div class="stat"><div class="stat-num">3</div><div class="stat-label">Web demo tabs</div></div>
-          <div class="stat"><div class="stat-num">2</div><div class="stat-label">Data sources (DB + KB)</div></div>
-          <div class="stat"><div class="stat-num">1</div><div class="stat-label">Unified author profile</div></div>
+        <aside class="hero-card">
+          <div class="hero-card-title">Try a live flow</div>
+          <button class="prompt-chip" data-prompt="Is my book live yet?">Release status</button>
+          <button class="prompt-chip" data-prompt="When will I get my royalty payment?">Royalty timing</button>
+          <button class="prompt-chip" data-prompt="How do I access my dashboard?">Workspace access</button>
+          <button class="prompt-chip" data-prompt="Where is my author copy?">Fulfillment check</button>
+        </aside>
+      </section>
+
+      <section class="stats">
+        <div class="stat">
+          <div class="stat-num">80%</div>
+          <div class="stat-label">Escalation threshold</div>
+        </div>
+        <div class="stat">
+          <div class="stat-num">4</div>
+          <div class="stat-label">Identity signals</div>
+        </div>
+        <div class="stat">
+          <div class="stat-num">2</div>
+          <div class="stat-label">Knowledge planes</div>
+        </div>
+        <div class="stat">
+          <div class="stat-num">1</div>
+          <div class="stat-label">Reviewer queue</div>
         </div>
       </section>
 
+      <nav class="tabs" id="tabs">
+        <button class="tab active" data-tab="playground">Playground</button>
+        <button class="tab" data-tab="identity">Identity Lab</button>
+        <button class="tab" data-tab="review">Review Queue</button>
+      </nav>
+
       <main class="content">
-        <section id="tab-chat" class="panel active">
+        <section id="tab-playground" class="panel active">
           <div class="grid">
-            <aside class="card">
-              <h3>Identity signals</h3>
-              <p class="muted">Optional, but boosts confidence for DB lookups.</p>
+            <aside class="card signal-card">
+              <div class="section-label">Signal Stack</div>
+              <h3>Identity context</h3>
+              <p class="muted">Optional for policy questions. Strongly recommended for record lookups.</p>
               <label>Email <input id="user_email" placeholder="sara.johnson@xyz.com" /></label>
               <label>Phone <input id="user_phone" placeholder="+91 9876543210" /></label>
               <label>Dashboard name <input id="user_name" placeholder="Sara J." /></label>
               <label>Instagram <input id="user_instagram" placeholder="@sarapoetry23" /></label>
               <div class="hint">
-                In mock mode (no keys), try: <code>Is my book live yet?</code>
+                Fastest demo path: add an email, then ask about launch status, royalties, copies, sales, or service programs.
               </div>
             </aside>
 
-            <section class="card chat">
+            <section class="card chat-card">
+              <div class="section-label">Copilot Console</div>
               <div class="chatlog" id="chatlog"></div>
               <form id="chatForm" class="composer">
-                <input id="message" placeholder="Ask about timelines, royalties, dashboard access, add-ons, author copies, sales..." />
-                <button type="submit">Send</button>
+                <input id="message" placeholder="Ask about launches, royalties, dashboard access, service programs, author copies, or sales..." />
+                <button type="submit">Run</button>
               </form>
               <div class="meta" id="chatMeta"></div>
             </section>
@@ -81,9 +103,10 @@
 
         <section id="tab-identity" class="panel">
           <div class="card">
-            <h3>Identity Unification</h3>
+            <div class="section-label">Identity Engine</div>
+            <h3>Resolve profile signals</h3>
             <p class="muted">
-              This calls <code>POST /identity/resolve</code> and shows confidence + recommended action.
+              Calls <code>POST /identity/resolve</code> and shows confidence, action, and signal breakdown.
             </p>
             <div class="grid2">
               <label>Email <input id="id_email" placeholder="sara.johnson@xyz.com" /></label>
@@ -93,18 +116,19 @@
             </div>
             <div class="row">
               <button id="identityRun">Resolve identity</button>
-              <button class="ghost" id="identitySeed">Fill demo values</button>
+              <button class="ghost" id="identitySeed">Load sample</button>
             </div>
             <pre class="code" id="identityOut">{}</pre>
           </div>
         </section>
 
-        <section id="tab-admin" class="panel">
+        <section id="tab-review" class="panel">
           <div class="card">
             <div class="row space">
               <div>
-                <h3>Admin review queue</h3>
-                <p class="muted">Pending <code>identity_mappings</code> with <code>verified=false</code>.</p>
+                <div class="section-label">Human In The Loop</div>
+                <h3>Reviewer queue</h3>
+                <p class="muted">Borderline identity decisions waiting for approval or rejection.</p>
               </div>
               <button id="adminRefresh">Refresh</button>
             </div>
@@ -115,11 +139,10 @@
       </main>
 
       <footer class="footer">
-        <span class="muted">Backend: <code>/chat</code>, <code>/identity/resolve</code>, <code>/admin/identity-review</code></span>
+        <span class="muted">Endpoints: <code>/chat</code>, <code>/identity/resolve</code>, <code>/admin/identity-review</code>, <code>/health</code></span>
       </footer>
     </div>
 
     <script src="/app/app.js"></script>
   </body>
 </html>
-

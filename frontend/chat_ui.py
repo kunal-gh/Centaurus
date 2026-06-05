@@ -1,90 +1,95 @@
 """
-Streamlit Chat Interface for BookLeaf Author Support Bot.
-Provides: chat bubbles, confidence visualization, escalation banners, identity sidebar.
-Spec Reference: Section 9.1
+Streamlit console for Centaurus.
+Provides chat, confidence visualization, escalation banners, and identity inputs.
 """
-import streamlit as st
 import requests
+import streamlit as st
 
 API_URL = "http://localhost:8000"
 
-# ============================================================
-# Page Configuration
-# ============================================================
 st.set_page_config(
-    page_title="BookLeaf Author Support",
-    page_icon="📚",
+    page_title="Centaurus Ops Console",
+    page_icon="C",
     layout="centered",
     initial_sidebar_state="expanded",
 )
 
-# ============================================================
-# Custom CSS — Sleek appearance per spec
-# ============================================================
-st.markdown("""
+st.markdown(
+    """
 <style>
-    .stChatMessage { border-radius: 12px; padding: 12px; margin-bottom: 8px; }
-    .stChatMessage.user { background-color: #f0f2f6; border-left: 4px solid #4a90e2; }
-    .stChatMessage.assistant { background-color: #e8f4f8; border-left: 4px solid #50c878; }
+    .stApp {
+        background: linear-gradient(180deg, #0a1322 0%, #0e1930 100%);
+        color: #edf3ff;
+    }
+    .stChatMessage {
+        border-radius: 14px;
+        padding: 12px;
+        margin-bottom: 8px;
+        border: 1px solid rgba(255,255,255,0.08);
+    }
+    .stChatMessage.user {
+        background: rgba(242, 194, 104, 0.10);
+        border-left: 4px solid #f2c268;
+    }
+    .stChatMessage.assistant {
+        background: rgba(82, 209, 255, 0.10);
+        border-left: 4px solid #52d1ff;
+    }
     .escalation-banner {
-        background-color: #ffebee;
-        border-left: 4px solid #e53935;
+        background-color: rgba(255, 125, 125, 0.10);
+        border-left: 4px solid #ff7d7d;
         padding: 10px;
-        border-radius: 8px;
-        color: #c62828;
+        border-radius: 10px;
+        color: #ffd3d3;
         font-weight: 600;
     }
-    .confidence-high { color: #2e7d32; font-weight: bold; }
-    .confidence-low  { color: #c62828; font-weight: bold; }
+    .confidence-high {
+        color: #5ce0a7;
+        font-weight: bold;
+    }
+    .confidence-low {
+        color: #ffcf66;
+        font-weight: bold;
+    }
 </style>
-""", unsafe_allow_html=True)
+""",
+    unsafe_allow_html=True,
+)
 
-# ============================================================
-# Header
-# ============================================================
-st.title("📚 BookLeaf Author Support")
-st.caption("Ask about your book status, royalties, author copy, or add-on services")
+st.title("Centaurus Ops Console")
+st.caption("Publishing operations copilot for launches, royalties, access, fulfillment, and reviewer handoff")
 
-# ============================================================
-# Sidebar — Identity Inputs
-# ============================================================
 with st.sidebar:
-    st.header("🔐 Your Details")
-    st.caption("Fill in your email or phone so we can look up your specific book status.")
+    st.header("Identity Context")
+    st.caption("Use any signal you have. Record-level answers are strongest when email or phone is present.")
 
     user_email = st.text_input(
         "Registered Email",
         placeholder="sara.johnson@xyz.com",
-        help="The email you used when registering with BookLeaf",
+        help="Best signal for matching the correct profile.",
     )
     user_phone = st.text_input(
         "WhatsApp / Phone",
         placeholder="+91 9876543210",
-        help="Your registered phone number with country code",
+        help="Useful fallback when email is missing.",
     )
     user_name = st.text_input(
         "Dashboard Name",
         placeholder="Sara J.",
-        help="Your name as it appears on the dashboard",
+        help="Display name used in the workspace.",
     )
     user_instagram = st.text_input(
         "Instagram Handle",
         placeholder="@sarapoetry23",
-        help="Your Instagram handle if you contacted us from there",
+        help="Helpful when the conversation started on social.",
     )
 
     st.divider()
-    st.markdown("**Privacy Note:** Your details are only used to retrieve your book status.")
+    st.markdown("**Note:** In mock mode you can test without API keys or external services.")
 
-# ============================================================
-# Chat State Initialization
-# ============================================================
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# ============================================================
-# Render Chat History
-# ============================================================
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.write(msg["content"])
@@ -103,7 +108,7 @@ for msg in st.session_state.messages:
             with cols[1]:
                 if meta.get("escalated"):
                     st.markdown(
-                        "<span class='escalation-banner'>🚨 Escalated to Human</span>",
+                        "<span class='escalation-banner'>Escalated to reviewer</span>",
                         unsafe_allow_html=True,
                     )
                 else:
@@ -111,30 +116,25 @@ for msg in st.session_state.messages:
 
             with cols[2]:
                 if meta.get("author_found"):
-                    st.caption("✅ Author matched")
+                    st.caption("Profile matched")
                 elif not meta.get("escalated"):
-                    st.caption("❓ New author")
+                    st.caption("No profile match")
 
-# ============================================================
-# Chat Input Handler
-# ============================================================
-if prompt := st.chat_input("Ask about your book, royalties, or publishing status..."):
-    # Store and display user message
+if prompt := st.chat_input("Ask about launch status, royalties, workspace access, service programs, copies, or sales..."):
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.write(prompt)
 
-    # Call backend API and render assistant response
     with st.chat_message("assistant"):
-        with st.spinner("Looking up your information..."):
+        with st.spinner("Running Centaurus..."):
             try:
                 payload = {
                     "channel": "web",
                     "message": prompt,
-                    "user_email": user_email if user_email else None,
-                    "user_phone": user_phone if user_phone else None,
-                    "user_name": user_name if user_name else None,
-                    "user_instagram": user_instagram if user_instagram else None,
+                    "user_email": user_email or None,
+                    "user_phone": user_phone or None,
+                    "user_name": user_name or None,
+                    "user_instagram": user_instagram or None,
                 }
 
                 res = requests.post(f"{API_URL}/chat", json=payload, timeout=30)
@@ -150,7 +150,6 @@ if prompt := st.chat_input("Ask about your book, royalties, or publishing status
                     "author_found": data.get("author_found", False),
                 }
 
-                # Render confidence badge + escalation status + author match
                 cols = st.columns([1, 1, 1])
                 with cols[0]:
                     conf = meta["confidence"]
@@ -163,7 +162,7 @@ if prompt := st.chat_input("Ask about your book, royalties, or publishing status
                 with cols[1]:
                     if meta["escalated"]:
                         st.markdown(
-                            "<span class='escalation-banner'>🚨 Escalated to Human</span>",
+                            "<span class='escalation-banner'>Escalated to reviewer</span>",
                             unsafe_allow_html=True,
                         )
                     else:
@@ -171,11 +170,10 @@ if prompt := st.chat_input("Ask about your book, royalties, or publishing status
 
                 with cols[2]:
                     if meta["author_found"]:
-                        st.caption("✅ Author matched")
+                        st.caption("Profile matched")
                     elif not meta["escalated"]:
-                        st.caption("❓ New author")
+                        st.caption("No profile match")
 
-                # Persist message with metadata for history rendering
                 st.session_state.messages.append({
                     "role": "assistant",
                     "content": response_text,
@@ -183,11 +181,11 @@ if prompt := st.chat_input("Ask about your book, royalties, or publishing status
                 })
 
             except requests.exceptions.ConnectionError:
-                err = "Cannot connect to the backend. Make sure it is running on port 8000."
+                err = "Cannot connect to the backend. Make sure FastAPI is running on port 8000."
                 st.error(err)
                 st.session_state.messages.append({"role": "assistant", "content": err})
 
-            except Exception as e:
-                err = f"An error occurred: {str(e)}"
+            except Exception as exc:
+                err = f"An error occurred: {str(exc)}"
                 st.error(err)
                 st.session_state.messages.append({"role": "assistant", "content": err})

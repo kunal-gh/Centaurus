@@ -13,13 +13,13 @@ class Settings:
     SUPABASE_URL: str = os.getenv("SUPABASE_URL", "")
     SUPABASE_KEY: str = os.getenv("SUPABASE_KEY", "")
     OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
-    MOCK_MODE: str = os.getenv("BOOKLEAF_MOCK_MODE", "")
+    MOCK_MODE: str = os.getenv("CENTAURUS_MOCK_MODE", os.getenv("BOOKLEAF_MOCK_MODE", ""))
 
     @property
     def is_mock_mode(self) -> bool:
         """
         Mock mode is enabled when:
-        - BOOKLEAF_MOCK_MODE is truthy, OR
+        - CENTAURUS_MOCK_MODE is truthy, OR
         - OPENAI_API_KEY is missing or explicitly set to "test"
         This keeps the demo runnable without external keys.
         """

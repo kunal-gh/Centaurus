@@ -45,7 +45,7 @@ def _cosine_similarity(a: list, b: list) -> float:
     return float(dot / (norm_a * norm_b))
 
 
-def _chunk_markdown(file_path: str = "knowledge_base/bookleaf_kb.md") -> list:
+def _chunk_markdown(file_path: str = "knowledge_base/centaurus_ops_manual.md") -> list:
     """
     Splits markdown KB file into chunks by ## headers.
     Each ## section becomes one independently retrievable chunk.
@@ -67,7 +67,7 @@ def _chunk_markdown(file_path: str = "knowledge_base/bookleaf_kb.md") -> list:
 
 
 def build_kb_cache(
-    file_path: str = "knowledge_base/bookleaf_kb.md",
+    file_path: str = "knowledge_base/centaurus_ops_manual.md",
     cache_path: str = "knowledge_base/kb_embeddings.json"
 ) -> list:
     """

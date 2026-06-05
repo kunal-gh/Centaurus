@@ -23,15 +23,15 @@ function setMeta(meta) {
   const conf = Number(meta.confidence ?? 0);
   const confClass = conf >= 0.8 ? "good" : conf >= 0.6 ? "warn" : "bad";
   const pills = [
-    { text: `Confidence: ${(conf * 100).toFixed(0)}%`, cls: confClass },
-    { text: `Intent: ${meta.intent ?? "unknown"}`, cls: "" },
-    { text: meta.escalated ? "Escalated" : "Not escalated", cls: meta.escalated ? "bad" : "good" },
-    { text: meta.author_found ? "Author matched" : "Author not matched", cls: meta.author_found ? "good" : "warn" },
+    { text: `Confidence ${(conf * 100).toFixed(0)}%`, cls: confClass },
+    { text: `Intent ${meta.intent ?? "unknown"}`, cls: "" },
+    { text: meta.escalated ? "Escalated" : "Auto-resolved", cls: meta.escalated ? "bad" : "good" },
+    { text: meta.author_found ? "Profile matched" : "No profile match", cls: meta.author_found ? "good" : "warn" },
   ];
-  for (const p of pills) {
+  for (const pill of pills) {
     const el = document.createElement("span");
-    el.className = `pill ${p.cls}`.trim();
-    el.textContent = p.text;
+    el.className = `pill ${pill.cls}`.trim();
+    el.textContent = pill.text;
     host.appendChild(el);
   }
 }
@@ -86,22 +86,22 @@ function renderQueue(items) {
   const host = $("adminQueue");
   host.innerHTML = "";
   if (!items?.length) {
-    host.innerHTML = `<div class="muted">No pending items. (Tip: trigger a borderline identity match to create one.)</div>`;
+    host.innerHTML = `<div class="muted">No pending reviewer items right now.</div>`;
     return;
   }
 
-  for (const it of items) {
+  for (const item of items) {
     const el = document.createElement("div");
     el.className = "item";
-    const conf = Number(it.match_confidence ?? 0);
+    const conf = Number(item.match_confidence ?? 0);
     const confClass = conf >= 0.8 ? "good" : conf >= 0.6 ? "warn" : "bad";
 
     el.innerHTML = `
       <div class="top">
         <div>
-          <div><strong>Mapping</strong> <code>${it.id}</code></div>
-          <div class="muted">Platform: <code>${it.platform}</code> • Identifier: <code>${it.platform_identifier}</code></div>
-          <div class="muted">Author: <code>${it.authors?.email ?? it.author_id ?? "unknown"}</code></div>
+          <div><strong>Mapping</strong> <code>${item.id}</code></div>
+          <div class="muted">Platform <code>${item.platform}</code> · Identifier <code>${item.platform_identifier}</code></div>
+          <div class="muted">Profile <code>${item.authors?.email ?? item.author_id ?? "unknown"}</code></div>
         </div>
         <div class="actions">
           <button class="ghost" data-action="reject">Reject</button>
@@ -109,19 +109,21 @@ function renderQueue(items) {
         </div>
       </div>
       <div class="meta">
-        <span class="pill ${confClass}">Match confidence: ${(conf * 100).toFixed(0)}%</span>
-        <span class="pill">Verified: ${String(it.verified)}</span>
+        <span class="pill ${confClass}">Match ${(conf * 100).toFixed(0)}%</span>
+        <span class="pill">Verified ${String(item.verified)}</span>
       </div>
     `;
 
     el.querySelector('[data-action="approve"]').addEventListener("click", async () => {
-      await postJson(`/admin/identity-review/${it.id}/approve`, { note: "approved via demo UI" });
+      await postJson(`/admin/identity-review/${item.id}/approve`, { note: "approved via Centaurus UI" });
       await refreshAdmin();
     });
+
     el.querySelector('[data-action="reject"]').addEventListener("click", async () => {
-      await postJson(`/admin/identity-review/${it.id}/reject`, { note: "rejected via demo UI" });
+      await postJson(`/admin/identity-review/${item.id}/reject`, { note: "rejected via Centaurus UI" });
       await refreshAdmin();
     });
+
     host.appendChild(el);
   }
 }
@@ -139,12 +141,18 @@ async function refreshAdmin() {
   }
 }
 
-// Tabs
 document.querySelectorAll(".tab").forEach((btn) => {
   btn.addEventListener("click", () => setTab(btn.dataset.tab));
 });
 
-// Chat
+document.querySelectorAll(".prompt-chip").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    $("message").value = btn.dataset.prompt;
+    $("message").focus();
+    setTab("playground");
+  });
+});
+
 $("chatForm").addEventListener("submit", async (e) => {
   e.preventDefault();
   const msg = $("message").value.trim();
@@ -170,14 +178,16 @@ $("chatForm").addEventListener("submit", async (e) => {
   }
 });
 
-// Identity
 $("identityRun").addEventListener("click", runIdentity);
-$("identitySeed").addEventListener("click", () => { seedIdentity(); runIdentity(); });
+$("identitySeed").addEventListener("click", () => {
+  seedIdentity();
+  runIdentity();
+});
 
-// Admin
 $("adminRefresh").addEventListener("click", refreshAdmin);
 
-// Default boot
-addBubble("bot", "Hi! Ask me about publishing timelines, royalties, dashboard access, add-ons, author copies, or sales. If I’m not confident (or the system hits an error), I’ll escalate to a human.");
+addBubble(
+  "bot",
+  "Centaurus is ready. Ask about launch status, royalties, workspace access, service programs, author copies, or sales. If confidence drops or the request needs a person, I’ll route it to review."
+);
 refreshAdmin();
-

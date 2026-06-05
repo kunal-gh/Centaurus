@@ -1,7 +1,6 @@
 """
 Intent classification using OpenAI JSON mode.
-Extracts: intent, entities (email, book_title, isbn, add_on_name), confidence, query_type.
-Spec Reference: Section 6.4
+Extracts: intent, entities, confidence, and query_type.
 """
 import json
 import re
@@ -10,7 +9,7 @@ from backend.config import settings
 
 client = None if settings.is_mock_mode else OpenAI(api_key=settings.OPENAI_API_KEY)
 
-SYSTEM_PROMPT = """You are an intent extractor for BookLeaf Publishing support system.
+SYSTEM_PROMPT = """You are an intent extractor for Centaurus, a publishing operations knowledge platform.
 
 Analyze the user message and return STRICT JSON with this exact structure:
 {
@@ -19,7 +18,7 @@ Analyze the user message and return STRICT JSON with this exact structure:
     "email": "<email if mentioned, else null>",
     "book_title": "<book title if mentioned, else null>",
     "isbn": "<ISBN if mentioned, else null>",
-    "add_on_name": "<add-on name if mentioned, else null>"
+    "add_on_name": "<service program if mentioned, else null>"
   },
   "confidence": <float between 0.0 and 1.0>,
   "query_type": "<db_query or kb_query>"
@@ -29,7 +28,7 @@ Allowed intents:
 - publishing_timeline   (asking about book live date, when book will launch, how long)
 - royalty_status        (asking about royalty, earnings, payment, when paid)
 - dashboard_access      (asking about login, dashboard, account access, forgot password)
-- addon_status          (asking about Bestseller Package, PR Push, Award Submission)
+- addon_status          (asking about Launch Sprint, Media Relay, Awards Circuit, or similar service programs)
 - author_copy           (asking about physical copy, delivery, dispatch, tracking)
 - book_sales            (asking about sales numbers, how many copies sold, revenue)
 - general_faq           (general publishing policy question not tied to a specific record)
@@ -70,9 +69,9 @@ def classify_query(user_message: str) -> dict:
 
         if any(w in msg for w in ["royalty", "earning", "payment"]):
             return _intent("royalty_status", 0.9, "db_query" if entities["email"] else "kb_query")
-        if any(w in msg for w in ["dashboard", "login", "password", "access"]):
+        if any(w in msg for w in ["dashboard", "login", "password", "access", "workspace"]):
             return _intent("dashboard_access", 0.9, "kb_query")
-        if any(w in msg for w in ["bestseller", "pr push", "award", "add-on", "addon"]):
+        if any(w in msg for w in ["launch sprint", "media relay", "awards circuit", "bestseller", "pr push", "award", "add-on", "addon"]):
             return _intent("addon_status", 0.9, "db_query" if entities["email"] else "kb_query")
         if any(w in msg for w in ["author copy", "physical copy", "dispatch", "tracking"]):
             return _intent("author_copy", 0.9, "db_query" if entities["email"] else "kb_query")
@@ -81,7 +80,6 @@ def classify_query(user_message: str) -> dict:
         if ("book" in msg and "live" in msg) or any(
             w in msg for w in ["timeline", "how long", "go live", "live date", "launch"]
         ):
-            # 0.90 triggers confidence_scorer "clear-case" floor when identity is strong and kb_relevance ~ 0.
             return _intent("publishing_timeline", 0.90, "db_query" if entities["email"] else "kb_query")
         if len(msg.strip()) < 6:
             return _intent("unknown", 0.3, "kb_query")

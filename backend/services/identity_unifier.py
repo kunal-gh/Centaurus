@@ -7,8 +7,7 @@ Algorithm: Three-tier approach
   Tier 2 (Fuzzy, 40-79%): rapidfuzz scoring + LLM verifier for borderline cases
   Tier 3 (New Identity, < 40%): Low confidence -> create provisional profile
 
-This satisfies the Intermediate Task requirement from the assignment brief.
-Spec Reference: Section 6.9
+Designed to support multi-signal profile linking with safe reviewer fallback.
 """
 import json
 from rapidfuzz import fuzz
