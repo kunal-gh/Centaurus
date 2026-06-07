@@ -47,6 +47,21 @@ Centaurus is engineered as a **Knowledge Operating System for Human + AI Collabo
 
 ---
 
+## 📸 Platform Interface
+
+Centaurus provides a clean, responsive UI that acts as a unified console for interacting with the multi-agent cognitive engine.
+
+![Playground UI Interface](docs/assets/ui-initial.png)
+*The main playground interface showing the signal stack for identity context and the copilot console for direct query execution.*
+
+![Live Chat Output](docs/assets/ui-chat.png)
+*A live multi-agent execution showing intent classification, identity resolution, execution, and semantic provenance/citations.*
+
+![Quality Dashboard](docs/assets/ui-dashboard.png)
+*The administrative dashboard tracking inline evaluation scores (Faithfulness, Relevancy, Coverage, and Escalation Rate) and agent log traces.*
+
+---
+
 ## 🏗️ Target System Architecture
 
 The following diagram illustrates the target platform topology, tracing queries from the entry client down to the database layers, wrapped in a comprehensive observability fabric:
