@@ -1232,80 +1232,271 @@ Used to manually check how the fuzzy scoring engine handles noisy inputs:
 
 ---
 
-### 13.4 Supabase seed Reference (Use for Testing Outcomes)
+### 13.4 Supabase Seed Reference & Testing Scenarios
 
-The following authors are pre-seeded in the database to test different retrieval paths:
+The following authors, books, and profiles are pre-seeded in the database to verify different execution paths and logic gates:
 
-#### 1. Perfect Match (Sara Johnson):
+#### 1. Perfect Match Case (Sara Johnson):
+* **UUID:** `00000000-0000-0000-0000-000000000001`
 * **Email:** `sara.johnson@xyz.com`
-* **Phone:** `+15550192834`
-* **Display Name:** `Sara Johnson`
+* **Phone:** `+919876543210`
+* **Display Name:** `Sara J.`
 * **Instagram:** `@sarapoetry23`
-* **Linked Books:** 2 books:
-  * *"The Infinite Horizon"* (Status: `live`, sales: 1250, royalties: $450)
-  * *"Chords of Silence"* (Status: `production`, sales: 0, royalties: $0)
-  * **Test Case:** Querying sales without specifying the title triggers the **multiple books** disambiguation path.
-
-#### 2. Fuzzy Match Case (Mark Miller):
-* **Email:** `mark.miller@outlook.com`
-* **Phone:** `+15550987654`
-* **Display Name:** `Mark M.`
-* **Instagram:** `@mark_writes`
 * **Linked Books:** 1 book:
-  * *"Echoes of Time"* (Status: `draft`)
-  * **Test Case:** If a user submits email `mark.miller@outlook.com` but changes their Instagram to `@mark_drafts`, this triggers the **Tier 2 (LLM Verify)** pipeline, logging an entry to the verify queue.
+  * *"Echoes of Srinagar"* (ISBN: `978-81-000001-1`, status: `processing`, sales: 1240)
+* **Linked Invoices:** `INV-2025-001` ($450.00, status: `approved`)
+* **Linked Tickets:** `TCK-1001` (status: `resolved`, description: *"Cannot download royalties statement PDF"*)
+* **Preferences:** Style: `concise`, Tone: `professional`, Response Length: 500, Verified: `true`
+* **Test Case:** Querying release status or invoices will execute the single-book database path with preference memory formatting applied (returning a concise summary).
+
+#### 2. Multiple Books Disambiguation Case (Nisha Patel):
+* **UUID:** `00000000-0000-0000-0000-000000000005`
+* **Email:** `nisha.patel@hotmail.com`
+* **Phone:** `+916655443322`
+* **Display Name:** `Nisha P.`
+* **Instagram:** `@nishapoems`
+* **Linked Books:** 2 books:
+  * *"Crimson Petals"* (ISBN: `978-81-000005-5`, status: `processing`, sales: 90)
+  * *"Violet Hours"* (ISBN: `978-81-000006-6`, status: `paid`, sales: 520)
+* **Test Case:** Querying royalties or timelines without specifying the book title triggers the **multiple books** state gate, returning a prompt asking the user which book they are asking about.
+
+#### 3. Unverified Profile Case (Arjun Mehta):
+* **UUID:** `00000000-0000-0000-0000-000000000002`
+* **Email:** `arjun.mehta@gmail.com`
+* **Phone:** `+919988776655`
+* **Display Name:** `Arjun Mehta`
+* **Instagram:** `@arjunwrites`
+* **Preferences:** Style: `verbose`, Tone: `technical`, Response Length: 1500, Verified: `false`
+* **Test Case:** Since Arjun is unverified, querying draft/pending policies will filter those chunks out during vector retrieval. If he queries live policies, they are returned but formatted with a technical tone and longer responses.
 
 ---
 
-## 14. MODEL CONTEXT PROTOCOL (MCP) INTERFACE
+### 13.5 Scenario D: Governance & Draft Policy Filter (`POST /chat`)
 
-Centaurus exposes a composable Model Context Protocol (MCP) server at `backend/mcp_server.py`. It enables external AI agents (like Claude Desktop or Cursor) to call Centaurus tool suites directly.
+Demonstrates how the Knowledge base filters sensitive or unapproved document drafts based on the user's preference verification flag.
 
-### 14.1 Exposed Tools:
-* **Identity Tools:**
-  * `resolve_identity(email, phone, name, instagram)`: Fuzzy matches multi-channel signals to profile UUIDs.
-  * `update_user_signals(author_id, email, phone, name, instagram)`: Updates identity fields.
-* **Knowledge Tools:**
-  * `search_policies(query, top_k)`: Performs hybrid search with lifecycle filters.
-  * `get_knowledge_citation(chunk_id)`: Retrieves version and editor provenance.
-* **Graph Tools:**
-  * `execute_cypher_read(query, parameters)`: Runs read Cypher queries against Neo4j.
-  * `get_entity_relations(entity_id)`: Traces direct 1-hop relationships.
-* **Memory Tools:**
-  * `fetch_user_preferences(author_id)`: Retrieves tone and style preferences.
-  * `store_episodic_memory(author_id, summary)`: Records session summaries.
-* **Reviewer & Governance Tools:**
-  * `fetch_escalations_queue()`: Gets queries pending human review.
-  * `submit_decision(query_log_id, approved_response, rationale, reviewed_by)`: Saves preference pairs for DPO alignment.
-  * `register_policy_document(title, section, content, version, owner_editor_id)`: Registers new policy records.
-  * `deprecate_policy(policy_id)`: Deprecates active policies.
+#### Test Run 1: Query from Unverified User (Arjun Mehta)
+* **Input message:** "Show me the launch program guidelines"
+* **User Email:** `arjun.mehta@gmail.com` (Preference: `verified_user = False`)
+* **Relational database check:** The system resolves Arjun's identity, retrieves his preferences (`verified = False`), and queries the vector index.
+* **Governance filter:** The Launch Program policy in `policy_documents` has `approval_status = 'draft'`. Because the user is unverified, `knowledge_base.py` filters this chunk out from search results.
+* **Response Output:** *"Based on official policies, I don't have active guidelines for the launch program. Let me loop in a human."*
+
+#### Test Run 2: Query from Verified User (Sara Johnson)
+* **Input message:** "Show me the launch program guidelines"
+* **User Email:** `sara.johnson@xyz.com` (Preference: `verified_user = True`)
+* **Relational database check:** Resolves Sara's profile, retrieves `verified_user = True`.
+* **Governance filter:** Since Sara is verified, the draft policy is allowed to pass the filter. The text is retrieved and prepended with a warning header: `[DRAFT POLICY - INTERNAL USE ONLY]`.
+* **Response Output:** *"**[Draft Policy - Internal Use Only]** The launch sprint includes standard visibility coordination... [Verified Governance Citations: Launch Program Operations (doc: centaurus_ops_manual.md, chunk: 4, v1, owner: Bob Jones)]"*
 
 ---
 
-## 15. QUALITY EVALUATION DASHBOARD & METRICS
+## 14. MODEL CONTEXT PROTOCOL (MCP) INTERFACE SPECIFICATION
 
-Centaurus implements a live observability dashboard for RAG quality monitoring:
-* **Aggregation Endpoint (`/admin/dashboard-stats`):** Computes recent averages for:
-  * **Faithfulness:** Context groundedness checks (checking that the answer is derived directly from the source manual).
-  * **Answer Relevancy:** Semantic match between query intent and agent response.
-  * **Graph Coverage:** Ratio of facts drawn from Neo4j traversals.
-  * **Escalation Rate:** Percentage of requests halted by the safety gate.
-* **Dashboard Interface:** Accessible at `/app/#dashboard`, displaying a grid of aggregate metrics cards and a real-time table of recent agent routes, showing the exact traversal path (e.g., `[memory, intent, identity, royalty, knowledge, eval, generation]`) of the agent swarm.
+Centaurus exposes a composable Model Context Protocol (MCP) server at `backend/mcp_server.py`. This enables external agent networks, developer workflows, and desktop assistants (like Claude Desktop or Cursor) to call Centaurus tool suites directly over standard input/output (stdio).
+
+The server is built using the **FastMCP SDK**. Below is the technical specification of the 12 tools exposed by the server.
+
+### 14.1 Identity Subsystem Tools
+
+#### Tool: `resolve_identity`
+* **Signature:** `resolve_identity(email: Optional[str] = None, phone: Optional[str] = None, name: Optional[str] = None, instagram: Optional[str] = None) -> dict`
+* **Purpose:** Resolves ambiguous user profiles using the weighted fuzzy string-matching rules.
+* **Input Parameters:**
+  * `email` (string, optional): Email handle.
+  * `phone` (string, optional): Telephone handle.
+  * `name` (string, optional): Display name handle.
+  * `instagram` (string, optional): Instagram handle.
+* **Returns:** A dict containing the auto-link status, matched author ID, confidence score, and matched parameters list.
+
+#### Tool: `update_user_signals`
+* **Signature:** `update_user_signals(author_id: str, email: Optional[str] = None, phone: Optional[str] = None, name: Optional[str] = None, instagram: Optional[str] = None) -> dict`
+* **Purpose:** Updates canonical profile details in the database to improve future fuzzy matches.
+* **Input Parameters:**
+  * `author_id` (string, required): Target author profile UUID.
+  * `email`/`phone`/`name`/`instagram` (string, optional): Updated handles.
+* **Returns:** Success status and the updated database payload dict.
+
+### 14.2 Knowledge & RAG Subsystem Tools
+
+#### Tool: `search_policies`
+* **Signature:** `search_policies(query: str, top_k: int = 3) -> list`
+* **Purpose:** Queries the vector and lexical indexes for policy guidelines, enforcing approval status gates.
+* **Input Parameters:**
+  * `query` (string, required): Search query.
+  * `top_k` (integer, optional): Number of results to return (default 3).
+* **Returns:** A list of matching text chunks, relevance scores, and metadata citations.
+
+#### Tool: `get_knowledge_citation`
+* **Signature:** `get_knowledge_citation(chunk_id: str) -> dict`
+* **Purpose:** Retrieves document version, editor publisher, and last audited timestamp for data lineage.
+* **Input Parameters:**
+  * `chunk_id` (string, required): Target document chunk ID.
+* **Returns:** A dict containing source lineage metadata.
+
+### 14.3 GraphRAG (Neo4j) Tools
+
+#### Tool: `execute_cypher_read`
+* **Signature:** `execute_cypher_read(query: str, parameters: Optional[dict] = None) -> dict`
+* **Purpose:** Executes custom read-only Cypher queries against the Neo4j Graph Database. Falls back to mock representations if Neo4j is offline.
+* **Input Parameters:**
+  * `query` (string, required): Cypher query string (e.g. `MATCH (a:Author) RETURN count(a)`).
+  * `parameters` (object, optional): Query variables dict.
+* **Returns:** A list of returned records.
+
+#### Tool: `get_entity_relations`
+* **Signature:** `get_entity_relations(entity_id: str) -> dict`
+* **Purpose:** Inspects direct 1-hop relationships connected to a node, returning neighboring nodes and edge properties.
+* **Input Parameters:**
+  * `entity_id` (string, required): Node ID value.
+* **Returns:** Neighbor node list and edge relationship types.
+
+### 14.4 Memory Tools
+
+#### Tool: `fetch_user_preferences`
+* **Signature:** `fetch_user_preferences(author_id: str) -> dict`
+* **Purpose:** Fetches the style, tone, and verification flags stored in the long-term preference memory.
+* **Input Parameters:**
+  * `author_id` (string, required): Target author profile UUID.
+* **Returns:** Preference memory dict (or null if not initialized).
+
+#### Tool: `store_episodic_memory`
+* **Signature:** `store_episodic_memory(author_id: str, summary: str) -> dict`
+* **Purpose:** Commits a summary of recent session turns into the episodic log buffer.
+* **Input Parameters:**
+  * `author_id` (string, required): Associated author profile UUID.
+  * `summary` (string, required): Conversation session summary text.
+* **Returns:** Success status of logging.
+
+### 14.5 Reviewer & Compliance Tools
+
+#### Tool: `fetch_escalations_queue`
+* **Signature:** `fetch_escalations_queue() -> dict`
+* **Purpose:** Retrieves all queries that failed the safety confidence gates and are waiting for human reviewer action.
+* **Returns:** A list of escalated query logs containing the original question, confidence, and trace ID.
+
+#### Tool: `submit_decision`
+* **Signature:** `submit_decision(query_log_id: str, approved_response: str, rationale: Optional[str] = None, reviewed_by: Optional[str] = None) -> dict`
+* **Purpose:** Records human-corrected answers for escalated queries, resolving the log row and creating a preference pair for DPO alignment.
+* **Input Parameters:**
+  * `query_log_id` (string, required): Escalated query log UUID.
+  * `approved_response` (string, required): Correction text.
+  * `rationale`/`reviewed_by` (string, optional): Operational notes.
+* **Returns:** Success confirmation status.
+
+#### Tool: `register_policy_document`
+* **Signature:** `register_policy_document(title: str, section: str, content: str, version: int = 1, owner_editor_id: Optional[str] = None) -> dict`
+* **Purpose:** Inserts a new policy record under 'draft' status to the policy documents database.
+* **Input Parameters:**
+  * `title`/`section`/`content` (string, required): Document properties.
+  * `version` (integer, optional): Version count.
+  * `owner_editor_id` (string, optional): Associated editor ID.
+* **Returns:** Staged policy document dict.
+
+#### Tool: `deprecate_policy`
+* **Signature:** `deprecate_policy(policy_id: str) -> dict`
+* **Purpose:** Marks a policy as 'deprecated', immediately excluding it from future RAG vector and graph lookups.
+* **Input Parameters:**
+  * `policy_id` (string, required): Policy UUID.
+* **Returns:** Success status and updated document info.
 
 ---
 
-## 16. PROJECT GLOSSARY
+## 15. QUALITY EVALUATION DASHBOARD & OBSERVABILITY SPECIFICATION
 
-* **RAG (Retrieval-Augmented Generation):** Enhancing LLM prompts by injecting relevant context retrieved from vector stores at runtime.
-* **GraphRAG:** Injecting topological knowledge graph data (nodes and relationships) into the prompt context to resolve multi-hop relational queries.
-* **LangGraph:** A framework for constructing stateful, multi-agent workflows with cyclic structures.
-* **DPO (Direct Preference Optimization):** A simple fine-tuning method that aligns LLMs using binary preferences (chosen vs. rejected responses) without training a separate reward model.
-* **BM25:** A lexical search algorithm that ranks documents based on term frequency and inverse document frequency.
-* **RRF (Reciprocal Rank Fusion):** Combines the rank scores of multiple retrieval strategies (like Dense and Sparse search) to improve overall search precision.
-* **HITL (Human-in-the-Loop):** An interactive workflow where human verification halts agent execution to approve or edit outcomes.
-* **LoRA (Low-Rank Adaptation):** A PEFT technique that updates a small subset of adapter weights to fine-tune models efficiently.
-* **Presidio:** Microsoft's open-source library used for pattern matching and PII redaction.
-* **MCP (Model Context Protocol):** A protocol allowing external AI agents to query tool endpoints directly.
+Centaurus implements a real-time observability panel at `/app/#dashboard` to track swarm reliability and RAG quality parameters.
+
+### 15.1 Mathematical Metrics Formulations (RAGAS Alignment)
+
+The Evaluation Agent (`eval_node`) and the `/admin/dashboard-stats` endpoint compute three primary quality metrics:
+
+#### 1. Faithfulness (Groundedness)
+Measures the extent to which the generated answer remains anchored within the retrieved context chunks, preventing LLM hallucinations.
+$$\text{Faithfulness} = \frac{\text{Number of statements in response supported by context}}{\text{Total statements in response}}$$
+* *Implementation:* Calculated by evaluating response sentences against vector and graph text. If the score falls below `0.70`, the Evaluation Agent overrides normal execution and triggers an escalation event.
+
+#### 2. Answer Relevancy
+Measures how directly the response addresses the initial user query, penalizing conversational fluff or irrelevant details.
+$$\text{Answer Relevancy} = \frac{1}{N} \sum_{i=1}^{N} \cos(\mathbf{E}_{\text{generated\_question}_i}, \mathbf{E}_{\text{original\_query}})$$
+* *Implementation:* Assessed by generating potential questions from the answer and comparing their embeddings with the user's query.
+
+#### 3. Graph Coverage
+Measures the utilization of structured relationship paths drawn from the Neo4j instance during context generation.
+$$\text{Graph Coverage} = \frac{\text{Number of graph-derived facts present in response}}{\text{Total graph-derived facts retrieved}}$$
+* *Implementation:* Tracks the presence of database entity properties (e.g. ISBNs, contract rates, campaign budgets) in the synthesized output.
+
+### 15.2 Observability Architecture Flow
+
+```
+[Swarm Execution] ---> [Log Metric Scores to query_logs]
+                              |
+                              v
+[UI Dashboard Panel] <--- [GET /admin/dashboard-stats]
+        |
+        +---> Updates Faithfulness, Relevancy, Graph cards
+        +---> Renders Agent Routing Log table with trace arrays
+```
+
+* **Aggregation API (`/admin/dashboard-stats`):**
+  * Queries the `query_logs` table for the last 100 entries.
+  * Calculates average `faithfulness_score`, `relevancy_score`, `graph_coverage_score`, and the overall ratio of `escalated` rows.
+  * If the log table is empty, the endpoint returns pre-seeded statistics and trace log rows (incorporating detailed visited node arrays) to populate the dashboard immediately.
+* **Dashboard Client Routing (`web/app.js`):**
+  * The event handler `setTab("dashboard")` triggers the asynchronous `refreshDashboard()` function.
+  * Fetches stats from the API, updates metric card values (converting scores to percentages), and dynamically builds rows for the routing log table.
+  * Displays visited nodes as compact visual badge pills (e.g., `[memory, intent, identity, royalty, knowledge, eval, generation]`), giving developers direct line-of-sight into the cognitive traversal path of the swarm.
+
+---
+
+## 16. SYSTEM SCRIPTS & OPERATIONAL PLAYBOOKS
+
+### 16.1 Graph Synchronizer Playbook (`scripts/sync_graph.py`)
+This script executes an ETL pipeline to mirror the PostgreSQL Supabase schema into Neo4j graph nodes and relationships.
+
+#### Run Command:
+```bash
+python scripts/sync_graph.py
+```
+* **Idempotency:** Utilizes `MERGE` Cypher queries to ensure that running the script multiple times does not result in duplicate nodes or edges.
+* **Connection Timeout:** Lazily instantiates the driver with a short connection timeout to fail fast if the Neo4j instance is offline or unreachable.
+
+### 16.2 Developer Smoke Testing (`scripts/debug_smoke.py`)
+A command-line script running Starlette's `TestClient` to execute integration test cases locally.
+
+#### Run Command:
+```bash
+python scripts/debug_smoke.py
+```
+* **Executed Assertions:**
+  * `GET /health` returns `{"status": "ok", "database": "connected"}`.
+  * `POST /chat` with a valid user email routes through the database agent and completes successfully without escalation.
+  * `POST /chat` with an extremely short or ambiguous query triggers the safety gate and escalates.
+  * `POST /identity/resolve` returns `action: "auto_link"` for perfect matches.
+  * `POST /chat` for users with multiple books returns a disambiguation response listing titles.
+  * `query_logs` table has records written.
+
+### 16.3 Model Alignment Training (`scripts/train_dpo.py`)
+Executes parameter-efficient Direct Preference Optimization (DPO) to align the LLM's classification and response generation behavior.
+
+#### Run Command:
+```bash
+python scripts/train_dpo.py
+```
+* **Mechanism:** Queries the `reviewer_decisions` table to compile `(prompt, chosen, rejected)` training triplets. Feeds data through HuggingFace's `DPOTrainer` to adjust adapter weights.
+
+---
+
+## 17. PROJECT GLOSSARY
+
+* **RAG (Retrieval-Augmented Generation):** Augmenting language model generation by retrieving relevant context chunks from vector indexes at query time.
+* **GraphRAG:** Injecting structured knowledge graphs (nodes and edges) into prompt context to enable multi-hop traversal reasoning.
+* **LangGraph:** A framework for building stateful, cyclic agent graphs where processing states are passed between functional nodes.
+* **Model Context Protocol (MCP):** An open standard protocol allowing clients or external swarms to call tool pipelines over stdin/stdout.
+* **DPO (Direct Preference Optimization):** An alignment algorithm that fine-tunes language models based on binary choice sets (chosen vs. rejected responses).
+* **BM25:** A lexical keyword ranking algorithm matching term frequency and inverse document frequency.
+* **RRF (Reciprocal Rank Fusion):** Combining result rankings from multiple searches (e.g., vector similarity and lexical search) to improve overall precision.
+* **HITL (Human-in-the-Loop):** System loops where agent actions are suspended for human verification, correction, or audit.
+* **LoRA (Low-Rank Adaptation):** A PEFT tuning methodology updating small low-rank adapter matrices instead of retraining all base weights.
 
 ---
 <div align="center">
