@@ -1,0 +1,35 @@
+{
+  "version": 2,
+  "cleanUrls": true,
+  "routes": [
+    {
+      "src": "/",
+      "status": 302,
+      "headers": { "Location": "/app/" }
+    },
+    {
+      "src": "/app/styles.css",
+      "dest": "/web/styles.css"
+    },
+    {
+      "src": "/app/app.js",
+      "dest": "/web/app.js"
+    },
+    {
+      "src": "/app/",
+      "dest": "/web/index.html"
+    },
+    {
+      "src": "/app",
+      "dest": "/web/index.html"
+    },
+    {
+      "src": "/health",
+      "dest": "/web/index.html"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/web/$1"
+    }
+  ]
+}

@@ -100,7 +100,8 @@ pre,
 .statusbar {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  align-items: center;
+  gap: 12px;
 }
 
 .status-pill,
@@ -110,6 +111,32 @@ pre,
   padding: 8px 12px;
   font-size: 0.74rem;
   background: rgba(255, 255, 255, 0.04);
+}
+
+.api-target-label {
+  font-size: 0.74rem;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+}
+
+.api-target-input {
+  background: rgba(16, 26, 46, 0.6);
+  border: 1px solid var(--line);
+  color: var(--text);
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 0.74rem;
+  padding: 6px 12px;
+  border-radius: 999px;
+  outline: none;
+  width: 200px;
+  transition: border-color 0.2s;
+}
+
+.api-target-input:focus {
+  border-color: var(--cyan);
 }
 
 .hero {

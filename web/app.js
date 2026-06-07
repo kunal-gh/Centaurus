@@ -65,8 +65,11 @@ function setMeta(meta) {
   }
 }
 
+let API_BASE = localStorage.getItem("CENTAURUS_API_URL") || "";
+
 async function postJson(url, body) {
-  const res = await fetch(url, {
+  const fullUrl = API_BASE ? `${API_BASE.replace(/\/$/, '')}${url}` : url;
+  const res = await fetch(fullUrl, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body ?? {}),
@@ -77,7 +80,8 @@ async function postJson(url, body) {
 }
 
 async function getJson(url) {
-  const res = await fetch(url);
+  const fullUrl = API_BASE ? `${API_BASE.replace(/\/$/, '')}${url}` : url;
+  const res = await fetch(fullUrl);
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
   return data;
@@ -214,6 +218,15 @@ $("identitySeed").addEventListener("click", () => {
 });
 
 $("adminRefresh").addEventListener("click", refreshAdmin);
+
+const apiBaseInput = $("api_base_url");
+if (apiBaseInput) {
+  apiBaseInput.value = API_BASE;
+  apiBaseInput.addEventListener("input", (e) => {
+    API_BASE = e.target.value.trim();
+    localStorage.setItem("CENTAURUS_API_URL", API_BASE);
+  });
+}
 
 addBubble(
   "bot",
