@@ -44,6 +44,7 @@ create table query_logs (
     response text,
     escalated boolean default false,
     escalation_reason text,
+    trace_id text,
     error_info text
 );
 
@@ -69,3 +70,26 @@ create table knowledge_base (
 );
 
 comment on table knowledge_base is 'Structured FAQ backup store used alongside the operations manual.';
+
+-- Store final approved reviewer answers for preference learning
+CREATE TABLE reviewer_decisions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    query_log_id UUID REFERENCES query_logs(id),
+    original_response TEXT NOT NULL,
+    approved_response TEXT NOT NULL,
+    rationale TEXT,
+    reviewed_by VARCHAR(255),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Store evaluations for regression testing
+CREATE TABLE evaluation_runs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    run_date TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    test_set_version VARCHAR(50) NOT NULL,
+    faithfulness_score NUMERIC(4,3),
+    answer_relevancy_score NUMERIC(4,3),
+    context_precision_score NUMERIC(4,3),
+    resolution_rate NUMERIC(4,3),
+    escalation_rate NUMERIC(4,3)
+);

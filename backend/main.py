@@ -8,21 +8,15 @@ Endpoints:
   GET  /health                -> Service and database health check
 """
 import traceback
-from fastapi import Body, FastAPI
+from fastapi import Body, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from starlette.responses import RedirectResponse
 
-from backend.models import ChatRequest, ChatResponse, IdentityRequest
+from backend.models import ChatRequest, ChatResponse, IdentityRequest, ResolveRequest
 from backend.database import get_supabase
-from backend.services import (
-    intent_classifier,
-    data_retriever,
-    knowledge_base,
-    response_generator,
-    confidence_scorer,
-    identity_unifier,
-)
+from backend.telemetry import tracing
+from backend.agents.supervisor import centaurus_app
 
 
 app = FastAPI(
@@ -90,191 +84,116 @@ def _escalate_and_log(log_entry: dict, reason: str) -> ChatResponse:
 @app.post("/chat", response_model=ChatResponse)
 async def chat(req: ChatRequest):
     """
-    Current linear answer pipeline used by Centaurus.
+    Instrumented 8-stage answer pipeline (Wave 2: full Langfuse tracing).
 
-    1. Intent classification
-    2. Identity resolution
-    3. Structured record retrieval
-    4. Knowledge retrieval
-    5. Confidence scoring
-    6. Escalation check
-    7. Response generation
-    8. Audit logging
+    1. Intent classification       → span: intent_classification
+    2. Identity resolution         → span: identity_resolution
+    3. Structured record retrieval → span: db_retrieval
+    4. Knowledge retrieval (RAG)   → span: kb_retrieval
+    5. Confidence scoring          → span: confidence_scoring
+    6. Escalation check            (inline, no separate span)
+    7. Response generation         → span: response_generation
+    8. Audit logging + trace close
     """
+    t_total = tracing.timer()
+
     log_entry = {
         "channel": req.channel,
         "raw_query": req.message,
         "escalated": False,
     }
 
+    # Open a top-level Langfuse trace for this request
+    trace = tracing.start_trace(
+        name="chat",
+        input={"message": req.message, "channel": req.channel},
+        metadata={"user_email": req.user_email, "user_name": req.user_name},
+    )
+    trace_id = tracing.get_trace_id(trace)
+    if trace_id:
+        log_entry["trace_id"] = trace_id
+
     try:
-        intent_data = intent_classifier.classify_query(req.message)
-        intent = intent_data.get("intent", "unknown")
-        intent_conf = intent_data.get("confidence", 0.5)
-        entities = intent_data.get("entities", {})
-        query_type = intent_data.get("query_type", "kb_query")
-
-        log_entry["intent"] = intent
-
-        resolved_email = req.user_email or (entities.get("email") if entities else None)
-        resolved_phone = req.user_phone
-
-        record_intents = {
-            "publishing_timeline",
-            "royalty_status",
-            "dashboard_access",
-            "addon_status",
-            "author_copy",
-            "book_sales",
-        }
-        if (resolved_email or resolved_phone) and intent in record_intents and query_type == "kb_query":
-            query_type = "db_query"
-
-        identity_conf = 0.5
-        author_id = None
-
-        if resolved_email or resolved_phone or req.user_name or req.user_instagram:
-            all_profiles = get_supabase().table("authors").select("*").execute().data
-            identity_result = identity_unifier.unify_identity(
-                {
-                    "email": resolved_email,
-                    "phone": resolved_phone,
-                    "name": req.user_name,
-                    "instagram": req.user_instagram,
-                },
-                all_profiles,
-            )
-            identity_conf = identity_result["confidence"]
-            author_id = identity_result.get("matched_author_id")
-            log_entry["author_id"] = author_id
-
-            if identity_result.get("action") == "verify_manually" and author_id:
-                platform_identifier = (
-                    resolved_email
-                    or resolved_phone
-                    or req.user_instagram
-                    or req.user_name
-                    or "unknown"
-                )
-                try:
-                    get_supabase().table("identity_mappings").insert({
-                        "author_id": author_id,
-                        "platform": req.channel,
-                        "platform_identifier": platform_identifier,
-                        "match_confidence": identity_conf,
-                        "verified": False,
-                    }).execute()
-                except Exception:
-                    pass
-
-        db_result = {
-            "author": None,
-            "books": [],
-            "error_flags": [],
-            "multiple_books": False,
-        }
-
-        if query_type == "db_query" and (resolved_email or resolved_phone):
-            db_result = data_retriever.fetch_author_and_books(
-                email=resolved_email,
-                phone=resolved_phone,
-            )
-
-            if db_result["error_flags"]:
-                return _escalate_and_log(log_entry, db_result["error_flags"][0])
-
-            if not db_result["author"]:
-                identity_conf = 0.0
-
-            if db_result["multiple_books"] and not (entities and entities.get("book_title")):
-                titles = [b["book_title"] for b in db_result["books"]]
-                response_text = (
-                    f"I found multiple books under your account: {', '.join(titles)}. "
-                    "Could you let me know which book you're asking about?"
-                )
-                log_entry.update({
-                    "response": response_text,
-                    "confidence": 0.6,
-                    "escalated": False,
-                })
-                get_supabase().table("query_logs").insert(log_entry).execute()
-                return ChatResponse(
-                    response=response_text,
-                    confidence=0.6,
-                    intent=intent,
-                    escalated=False,
-                    author_found=True,
-                    books_found=len(db_result["books"]),
-                )
-
-            if db_result["multiple_books"] and entities and entities.get("book_title"):
-                title_query = entities["book_title"].lower()
-                filtered = [
-                    b for b in db_result["books"]
-                    if title_query in b["book_title"].lower()
-                ]
-                if filtered:
-                    db_result["books"] = filtered
-
-        kb_text, kb_relevance = None, 0.0
-        kb_sources = []
-        if query_type == "kb_query" or not db_result["author"]:
-            hybrid_results = knowledge_base.search_knowledge_base_hybrid(req.message, top_k=3)
-            if hybrid_results:
-                best_match = hybrid_results[0]
-                kb_text = best_match["text"]
-                kb_relevance = best_match["score"]
-                for res in hybrid_results:
-                    kb_sources.append({
-                        "chunk_id": res["metadata"].get("chunk_id"),
-                        "section": res["metadata"].get("section"),
-                        "source": res["metadata"].get("source"),
-                        "score": res["score"]
-                    })
-
-        overall_confidence = confidence_scorer.calculate_confidence(
-            intent_confidence=intent_conf,
-            identity_confidence=identity_conf,
-            kb_relevance=kb_relevance if kb_text else 0.0,
-            query_type=query_type,
-        )
-        log_entry["confidence"] = overall_confidence
-
-        escalation = confidence_scorer.should_escalate(
-            overall_confidence,
-            intent,
-            db_result.get("error_flags", []),
-        )
-        if escalation["escalate"]:
-            return _escalate_and_log(log_entry, escalation["reason"])
-
-        response_text = response_generator.generate_response(
-            intent=intent,
-            user_message=req.message,
-            db_data=db_result,
-            kb_context=kb_text,
-        )
-
-        log_entry.update({
-            "response": response_text,
+        # Initialize the LangGraph state
+        initial_state = {
+            "channel": req.channel,
+            "raw_query": req.message,
+            "user_email": req.user_email,
+            "user_phone": req.user_phone,
+            "user_name": req.user_name,
+            "user_instagram": req.user_instagram,
+            "trace_id": trace_id,
+            "intent": "unknown",
+            "intent_confidence": 0.5,
+            "entities": {},
+            "query_type": "kb_query",
+            "author_id": None,
+            "identity_confidence": 0.5,
+            "identity_action": None,
+            "db_result": {"author": None, "books": [], "error_flags": [], "multiple_books": False},
+            "kb_text": None,
+            "graph_text": None,
+            "kb_relevance": 0.0,
+            "kb_sources": [],
+            "overall_confidence": 0.5,
             "escalated": False,
+            "escalation_reason": None,
+            "response": "",
+            "next_node": ""
+        }
+        
+        # Execute the LangGraph State Machine
+        # A thread_id is required if checkpointing is enabled
+        config = {"configurable": {"thread_id": trace_id or "default_thread"}}
+        final_state = centaurus_app.invoke(initial_state, config=config)
+        
+        # Extract outputs
+        response_text = final_state.get("response", "")
+        overall_confidence = final_state.get("overall_confidence", 0.0)
+        intent = final_state.get("intent", "unknown")
+        escalated = final_state.get("escalated", False)
+        author_found = bool(final_state.get("author_id"))
+        books_found = len(final_state.get("db_result", {}).get("books", []))
+        kb_sources = final_state.get("kb_sources", [])
+
+        # Audit Logging
+        log_entry.update({
+            "intent": intent,
+            "author_id": final_state.get("author_id"),
+            "confidence": overall_confidence,
+            "response": response_text,
+            "escalated": escalated,
+            "escalation_reason": final_state.get("escalation_reason")
         })
         get_supabase().table("query_logs").insert(log_entry).execute()
+
+        # Close trace
+        tracing.end_trace(
+            trace,
+            output={
+                "response": response_text,
+                "confidence": overall_confidence,
+                "intent": intent,
+                "escalated": escalated,
+                "sources": len(kb_sources),
+            },
+            metadata={"total_latency_ms": tracing.elapsed_ms(t_total)},
+        )
 
         return ChatResponse(
             response=response_text,
             confidence=overall_confidence,
             intent=intent,
-            escalated=False,
-            author_found=db_result["author"] is not None,
-            books_found=len(db_result["books"]),
+            escalated=escalated,
+            reason=final_state.get("escalation_reason"),
+            author_found=author_found,
+            books_found=books_found,
             sources=kb_sources if kb_sources else None,
         )
 
     except Exception as exc:
-        error_trace = traceback.format_exc()
-        log_entry["error_info"] = error_trace[:500]
-        return _escalate_and_log(log_entry, f"Unhandled exception: {str(exc)}")
+        tracing.end_trace(trace, output={"error": str(exc)}, level="ERROR")
+        raise HTTPException(status_code=500, detail=str(exc))
 
 
 @app.post("/identity/resolve")
@@ -348,17 +267,19 @@ async def approve_identity_mapping(mapping_id: str, body: dict = Body(default={}
 @app.post("/admin/identity-review/{mapping_id}/reject")
 async def reject_identity_mapping(mapping_id: str, body: dict = Body(default={})):
     """
-    Reject a pending identity mapping by marking it verified.
+    Reject a pending identity mapping by deleting it from the queue.
+    A rejected mapping is removed entirely — it should not influence future scoring.
+    The optional 'note' is returned for audit trail purposes but not persisted here.
     """
     try:
         res = (
             get_supabase()
             .table("identity_mappings")
-            .update({"verified": True})
+            .delete()
             .eq("id", mapping_id)
             .execute()
         )
-        return {"ok": True, "updated": res.data, "note": body.get("note")}
+        return {"ok": True, "deleted": res.data, "note": body.get("note")}
     except Exception as exc:
         return {"ok": False, "error": str(exc)}
 
@@ -375,3 +296,50 @@ async def health():
         db_status = f"error: {str(exc)}"
 
     return {"status": "ok", "database": db_status, "version": "0.1.0"}
+
+# ── Wave 5: RLHF & Human-in-the-Loop Admin Endpoints ───────────────────────────
+
+@app.get("/admin/escalations")
+def get_escalations():
+    """
+    Returns recent queries that were escalated to a human.
+    """
+    try:
+        data = get_supabase().table("query_logs").select("*").eq("escalated", True).order("created_at", desc=True).limit(50).execute()
+        return {"escalations": data.data}
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
+@app.post("/admin/resolve")
+def resolve_escalation(req: ResolveRequest):
+    """
+    Reviewer submits the correct answer. We save it to `reviewer_decisions`
+    so we can fine-tune the model with DPO later.
+    """
+    try:
+        # Get the original query log to fetch the model's failed response
+        log_data = get_supabase().table("query_logs").select("response").eq("id", req.query_log_id).execute()
+        if not log_data.data:
+            raise HTTPException(status_code=404, detail="Query log not found")
+            
+        original_response = log_data.data[0].get("response", "")
+        
+        # Insert into reviewer decisions
+        get_supabase().table("reviewer_decisions").insert({
+            "query_log_id": req.query_log_id,
+            "original_response": original_response,
+            "approved_response": req.approved_response,
+            "rationale": req.rationale,
+            "reviewed_by": req.reviewed_by
+        }).execute()
+        
+        # Mark as resolved in query_logs
+        get_supabase().table("query_logs").update({
+            "escalated": False,
+            "escalation_reason": "Resolved by Human"
+        }).eq("id", req.query_log_id).execute()
+        
+        return {"status": "success", "message": "Decision recorded for DPO"}
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))

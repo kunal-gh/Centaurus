@@ -1,0 +1,30 @@
+version: '3.9'
+
+services:
+  langfuse-server:
+    image: ghcr.io/langfuse/langfuse:latest
+    depends_on:
+      - langfuse-db
+    ports:
+      - "3000:3000"
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@langfuse-db:5432/postgres
+      - NEXTAUTH_SECRET=secret
+      - SALT=salt
+      - TELEMETRY_ENABLED=false
+      - LANGFUSE_ENABLE_EXPERIMENTAL_FEATURES=false
+
+  langfuse-db:
+    image: postgres:15
+    restart: always
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - langfuse_data:/var/lib/postgresql/data
+
+volumes:
+  langfuse_data:

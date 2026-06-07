@@ -1,169 +1,149 @@
-# Centaurus
+<div align="center">
+  <h1>🌌 Centaurus</h1>
+  <p><b>Enterprise Knowledge Worker Platform & Multi-Agent Cognitive Architecture</b></p>
+  <p>
+    <i>Production-grade AI infrastructure combining Hybrid Search, GraphRAG, LangGraph Orchestration, and Direct Preference Optimization (RLHF).</i>
+  </p>
+</div>
 
-Centaurus is a knowledge worker agent platform for publishing operations. It combines structured record lookup, retrieval-augmented answers, identity resolution, and human review gates into one FastAPI-based control plane that can grow into a full GraphRAG and multi-agent system.
+<br/>
 
-![Centaurus UI](docs/centaurus-ui.png)
+## 🎯 Executive Summary
+Centaurus is a production-ready **Multi-Agent Cognitive Architecture** designed to autonomously resolve complex, domain-specific queries that traditional naive RAG pipelines fail to handle. 
 
-[![FastAPI](https://img.shields.io/badge/FastAPI-005571?style=for-the-badge&logo=fastapi)](https://fastapi.tiangolo.com/)
-[![Supabase](https://img.shields.io/badge/Supabase-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white)](https://supabase.com/)
-[![OpenAI](https://img.shields.io/badge/OpenAI-412991?style=for-the-badge&logo=openai&logoColor=white)](https://openai.com/)
-[![Docker Ready](https://img.shields.io/badge/Docker-Ready-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com/)
-[![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org/)
+Built to demonstrate advanced AI engineering paradigms, Centaurus moves beyond standard vector search by integrating **Neo4j Graph traversals (GraphRAG)** for multi-hop relational reasoning, **LangGraph** for non-deterministic state machine orchestration, and **HuggingFace TRL** for continuous model alignment via Direct Preference Optimization (DPO).
 
-## What Centaurus Does
+It is built specifically to address the core challenges in enterprise GenAI:
+1. **Hallucinations over Relational Data:** Solved via GraphRAG (Neo4j) deterministic context injections.
+2. **Context Window Saturation:** Solved via Hybrid RRF Retrieval (Dense + Sparse) and Cross-Encoder Reranking.
+3. **Unpredictable Execution:** Solved via LangGraph cyclical state machines with Human-in-the-Loop (HITL) checkpoints.
+4. **Model Drift & Alignment:** Solved via continuous RLHF/DPO training on human reviewer escalations.
 
-Centaurus is designed around a narrow but realistic operating domain: publishing workflows. Teams need fast, grounded answers about launch timelines, royalties, fulfillment, dashboard access, and service status. That makes the project a strong sandbox for the exact engineering problems that show up in modern AI platform work:
+---
 
-- Retrieval over policy and process knowledge
-- Identity resolution across noisy user signals
-- Safe access to structured operational records
-- Confidence-based escalation and human review
-- A clean upgrade path toward agents, GraphRAG, evals, and observability
+## 🧠 Core Technical Pillars
 
-## What Ships In This Repo Today
+### 1. Multi-Agent Orchestration (LangGraph)
+Linear prompt chaining is insufficient for complex enterprise tasks. Centaurus utilizes a cyclical, state-driven multi-agent architecture built on `LangGraph`.
+- **Global State Management:** Immutable `AgentState` propagation across specialized nodes (Intent, Identity, Knowledge, Escalation).
+- **Supervisor Routing:** Dynamic control flow evaluating confidence scores to route between databases or trigger escalations.
+- **Human-in-the-Loop (HITL):** Thread checkpointing (`MemorySaver` / `PostgresSaver`) allows execution to pause, await human review for low-confidence inferences, and resume statefully.
 
-- FastAPI control plane with `/chat`, `/identity/resolve`, `/admin/identity-review`, and `/health`
-- Record-aware response flow backed by Supabase or deterministic mock mode
-- Lightweight RAG over a Markdown operations manual
-- Multi-signal identity resolution across email, phone, dashboard name, and Instagram handle
-- Confidence scoring with automatic human escalation below the safety threshold
-- Web demo UI served directly from FastAPI
-- Streamlit chat console for quick local testing
-- Seed SQL, mock data, and REST client test cases for repeatable demos
-- Optional workflow ingress example in `n8n_workflows/centaurus_gateway.json`
+### 2. Multi-Modal Retrieval Strategy (Hybrid RAG + GraphRAG)
+To guarantee high-precision context, Centaurus queries and merges three distinct data topologies at runtime:
+- **GraphRAG (Neo4j):** Executes dynamic Cypher queries to traverse multi-hop graphs. Ideal for answering relational questions (e.g., *"Did the author of X book receive royalties for Y add-on service?"*).
+- **Hybrid Vector RAG (Qdrant):** Fuses Dense embeddings (384-dimensional semantic search) with Sparse vectors (BM25 keyword search) using Reciprocal Rank Fusion (RRF).
+- **Cross-Encoder Reranking:** Passes the fused corpus through an MS-MARCO Cross-Encoder to penalize contextually irrelevant chunks before LLM ingestion.
 
-## Current Product Positioning
+### 3. Telemetry & AI Observability
+You can't optimize what you can't measure. The entire pipeline is heavily instrumented:
+- **Distributed Tracing (Langfuse):** End-to-end span generation for every LLM call, DB query, and graph traversal, capturing granular latency, token usage, and cost.
+- **Trace Correlation:** Generates unique `trace_id` signatures propagated to the Supabase operational logs, creating a 1:1 mapping between User Sessions, DB States, and LLM Inference graphs.
 
-Centaurus is intentionally presented as a product foundation, not a one-off chatbot demo. The current codebase is the operational core for a broader knowledge operations platform:
+### 4. Continuous Alignment (RLHF via DPO)
+Centaurus features a self-improving data flywheel. 
+- **Escalation Routing:** When the confidence scorer rejects a generation, it is routed to a human reviewer via the `/admin/escalations` API.
+- **Preference Dataset Generation:** Reviewers submit the correct response, automatically generating `(prompt, chosen, rejected)` tuple pairs in the `reviewer_decisions` table.
+- **Direct Preference Optimization (DPO):** Uses a built-in HuggingFace `trl` pipeline (`scripts/train_dpo.py`) to fine-tune the LLM via LoRA (Low-Rank Adaptation) without needing a separate reward model.
 
-- Today: structured lookup + lightweight retrieval + identity + review queue
-- Next: hybrid Qdrant retrieval + reranking
-- Then: Neo4j graph context and GraphRAG
-- Then: LangGraph supervisor with specialist agents
-- Then: evaluation, observability, and cloud deployment
+---
 
-## Why This Direction
+## 🏗️ System Architecture
 
-This repo focuses on the signals that matter most for AI engineering roles in 2026:
+```mermaid
+graph TD
+    User([User Query]) --> API[FastAPI Gateway]
+    
+    subgraph "LangGraph Cognitive Engine"
+        API --> State[State Initialization]
+        State --> IntentNode[Intent Classification Node]
+        IntentNode --> IdentityNode[Identity Resolution Node]
+        
+        IdentityNode -->|Operational Intent| DBNode[Structured DB Retrieval Node]
+        IdentityNode -->|Knowledge Intent| RAGNode[Hybrid RAG & Graph Retrieval Node]
+        
+        DBNode --> RAGNode
+        
+        RAGNode --> ConfNode[Confidence Scorer Node]
+        
+        ConfNode -->|Confidence > 0.85| GenNode[Generation Node]
+        ConfNode -->|Confidence < 0.85| EscNode[Escalation Node]
+    end
+    
+    subgraph "Retrieval Layer"
+        RAGNode <--> Qdrant[(Qdrant Vector DB)]
+        RAGNode <--> Neo4j[(Neo4j Graph DB)]
+    end
+    
+    subgraph "RLHF & Data Engine"
+        EscNode --> ReviewQueue[(Supabase: query_logs)]
+        ReviewQueue --> HumanAdmin[Human Reviewer]
+        HumanAdmin --> DPO[(Supabase: reviewer_decisions)]
+        DPO -.-> |scripts/train_dpo.py| LoraFT[LoRA DPO Fine-Tuning]
+    end
 
-- Real retrieval systems instead of keyword-only demos
-- Agent orchestration with explicit state and safe fallbacks
-- Evaluation and observability as first-class platform concerns
-- Free-tier-friendly infrastructure choices with a clear paid upgrade path
-
-The implementation roadmap for that path is documented in:
-
-- [`docs/STRATEGIC_EVALUATION.md`](docs/STRATEGIC_EVALUATION.md) — plan comparison and honest scope decisions
-- [`TECHNICAL_ARCHITECTURE.md`](TECHNICAL_ARCHITECTURE.md)
-- [`docs/ROADMAP.md`](docs/ROADMAP.md)
-- [`docs/IMPLEMENTATION_HANDOFF.md`](docs/IMPLEMENTATION_HANDOFF.md)
-
-## Free-Tier Build Strategy
-
-The project is scoped so the next major upgrades can stay inside a realistic low-cost stack:
-
-- Local development: FastAPI + mock mode + SQLite-free file artifacts
-- Vector retrieval: Qdrant free tier or self-hosted Qdrant in Docker
-- Graph layer: Neo4j AuraDB Free or local Neo4j container
-- Observability: self-hosted Langfuse OSS when needed
-- Evaluation: DeepEval and RAGAS in local or CI workflows
-- Deployment preview: Docker locally first, then a lightweight Cloud Run or container-hosted preview
-
-Paid upgrades remain straightforward later:
-
-- Managed vector and graph infrastructure
-- Production observability storage
-- Better rerankers and commercial model routing
-- AWS/GCP infrastructure-as-code rollout
-
-## Repo Guide
-
-```text
-backend/
-  main.py                    FastAPI app and request pipeline
-  services/
-    intent_classifier.py     Query understanding
-    identity_unifier.py      Multi-signal identity matching
-    data_retriever.py        Structured record lookup
-    knowledge_base.py        Markdown retrieval layer
-    confidence_scorer.py     Safety gate and escalation rules
-    response_generator.py    Final answer synthesis
-frontend/
-  chat_ui.py                 Streamlit console
-knowledge_base/
-  centaurus_ops_manual.md    Retrieval source document
-supabase/
-  schema.sql                 Core tables
-  seed.sql                   Demo data
-web/
-  index.html                 Browser UI shell
-  styles.css                 Brand and layout
-  app.js                     Frontend interactions
-docs/
-  ROADMAP.md                 Detailed product roadmap
-  IMPLEMENTATION_HANDOFF.md  Build sequence and handoff context
+    GenNode --> Response([Final Response])
+    EscNode --> Response
 ```
 
-## Run Locally
+---
 
+## 🛠️ The Tech Stack
+
+| Domain | Technologies | Purpose |
+|--------|-------------|---------|
+| **Orchestration** | `LangGraph`, `LangChain`, `FastAPI` | Cyclical multi-agent state management & async serving. |
+| **Vector DB** | `Qdrant`, `FastEmbed` | Dense+Sparse hybrid vector retrieval. |
+| **Graph DB** | `Neo4j`, `Cypher` | Relational 2-hop GraphRAG traversals. |
+| **Data & Auth** | `Supabase` (PostgreSQL) | Identity mapping, operational data, and preference logging. |
+| **Observability** | `Langfuse`, `OpenTelemetry` | Granular span tracing, latency monitoring, and token tracking. |
+| **Alignment Ops** | `TRL`, `PEFT` (LoRA), `PyTorch` | RLHF DPO training pipeline. |
+
+---
+
+## 🚀 Local Development Setup
+
+Centaurus is engineered to be portable. The core infrastructure can be spun up entirely locally via Docker.
+
+### 1. Environment Configuration
+Clone the repository and configure the environment:
 ```bash
-git clone https://github.com/kunal-gh/Centaurus.git
-cd Centaurus
-pip install -r requirements.txt
-uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
+cp .env.example .env
 ```
+Populate `.env` with your Supabase keys, OpenAI keys, and Qdrant/Langfuse preferences. (Set `CENTAURUS_MOCK_MODE=1` to run deterministic tests without API keys).
 
-Mock mode is enabled automatically when `OPENAI_API_KEY` is missing or set to `test`. You can also force it with `CENTAURUS_MOCK_MODE=1`.
-
-### Optional Streamlit Console
-
+### 2. Boot Infrastructure
+Spin up the local Graph Database and Telemetry server:
 ```bash
-streamlit run frontend/chat_ui.py
+# Start local Neo4j Graph DB
+docker-compose -f docker/neo4j-compose.yml up -d
+
+# Start local Langfuse Observability stack
+docker-compose -f docker/langfuse-compose.yml up -d
 ```
 
-## Environment Variables
-
-```env
-SUPABASE_URL=
-SUPABASE_KEY=
-OPENAI_API_KEY=
-CENTAURUS_MOCK_MODE=
+### 3. Sync Graph & Vectors
+Run the deterministic synchronization scripts to populate Qdrant and Neo4j with Supabase operational data:
+```bash
+python scripts/sync_graph.py
 ```
 
-## Endpoints
+### 4. Run the API
+```bash
+uvicorn backend.main:app --reload --port 8000
+```
+API Documentation available at: `http://localhost:8000/docs`
 
-- `GET /` redirects to the browser UI
-- `POST /chat` runs the main answer pipeline
-- `POST /identity/resolve` runs identity resolution only
-- `GET /admin/identity-review` returns pending reviewer decisions
-- `POST /admin/identity-review/{id}/approve` approves a queued decision
-- `POST /admin/identity-review/{id}/reject` rejects a queued decision
-- `GET /health` returns service and database status
+---
 
-## Testing
+## 🧪 Evaluation & Testing
 
-- REST scenarios: `tests/test_queries.http`
-- Smoke checks: `scripts/debug_smoke.py`
+Centaurus implements rigorous CI/CD principles for GenAI applications:
+- **Golden Datasets:** Baseline evaluations are performed against `tests/evals/golden.json`.
+- **RAGAS Metrics:** Regression tests are run on every major PR measuring **Faithfulness**, **Answer Relevancy**, and **Context Precision**.
 
-## Near-Term Roadmap
+---
 
-- Wave 1: hybrid Qdrant retrieval, reranking, citations, RAGAS golden-set baseline
-- Wave 2: Langfuse / OpenTelemetry tracing across the full request path
-- Wave 3: Neo4j graph layer and GraphRAG-lite context assembly
-- Wave 4: LangGraph supervisor with identity, publishing, royalty, knowledge, and escalation agents
-- Wave 5: reviewer feedback loop and Self-RAG lite (adaptive retrieval grading)
-- Wave 6: DeepEval + RAGAS CI with regression gates
-- Wave 7: LiteLLM gateway, Presidio PII scrubbing, Docker Compose full stack
-- Wave 8: MCP server surface and Cloud Run preview deploy
-
-Full rationale: [`docs/STRATEGIC_EVALUATION.md`](docs/STRATEGIC_EVALUATION.md)
-
-## Screens And Diagrams
-
-- Architecture diagram: `docs/architecture_diagram.png`
-- Identity flowchart: `docs/identity_flowchart.png`
-- Optional workflow ingress diagram: `docs/n8n_workflow.png`
-
-## License
-
-This repository currently ships without a license file. Add one before broader distribution if you want the code to be reused publicly.
+<div align="center">
+  <i>Built for the future of Autonomous Enterprise Agents.</i>
+</div>
