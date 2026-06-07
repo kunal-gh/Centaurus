@@ -45,7 +45,11 @@ create table query_logs (
     escalated boolean default false,
     escalation_reason text,
     trace_id text,
-    error_info text
+    error_info text,
+    faithfulness_score float,
+    relevancy_score float,
+    graph_coverage_score float,
+    visited_nodes text[]
 );
 
 comment on table query_logs is 'Audit trail for user questions, responses, and escalation events.';
@@ -93,3 +97,74 @@ CREATE TABLE evaluation_runs (
     resolution_rate NUMERIC(4,3),
     escalation_rate NUMERIC(4,3)
 );
+
+create table editors (
+    id uuid primary key default gen_random_uuid(),
+    name text not null,
+    department text,
+    created_at timestamptz default now()
+);
+
+comment on table editors is 'Internal editorial staff members.';
+
+create table campaigns (
+    id uuid primary key default gen_random_uuid(),
+    book_id uuid references books(id) on delete cascade,
+    name text not null,
+    budget numeric(12,2) default 0.0,
+    start_date date,
+    end_date date,
+    created_at timestamptz default now()
+);
+
+comment on table campaigns is 'Marketing and promotional campaigns associated with books.';
+
+create table invoices (
+    id uuid primary key default gen_random_uuid(),
+    invoice_number text unique not null,
+    amount numeric(12,2) not null,
+    status text check (status in ('pending', 'approved', 'paid', 'rejected')),
+    reviewer_id uuid references authors(id),
+    created_at timestamptz default now()
+);
+
+comment on table invoices is 'Billing statements linked to reviewer audits and payouts.';
+
+create table support_tickets (
+    id uuid primary key default gen_random_uuid(),
+    ticket_id text unique not null,
+    author_id uuid references authors(id) on delete cascade,
+    status text check (status in ('open', 'in_progress', 'resolved', 'closed')),
+    priority text check (priority in ('low', 'medium', 'high', 'critical')),
+    description text,
+    created_at timestamptz default now()
+);
+
+comment on table support_tickets is 'Customer help tickets linked to author accounts.';
+
+create table policy_documents (
+    id uuid primary key default gen_random_uuid(),
+    title text not null,
+    section text not null,
+    content text not null,
+    version int default 1,
+    approval_status text check (approval_status in ('draft', 'pending_approval', 'approved', 'deprecated')),
+    owner_editor_id uuid references editors(id),
+    last_verified_at timestamptz default now(),
+    created_at timestamptz default now()
+);
+
+comment on table policy_documents is 'Versioned knowledge policies subject to governance lifecycle.';
+
+create table user_preferences (
+    id uuid primary key default gen_random_uuid(),
+    author_id uuid references authors(id) on delete cascade,
+    communication_style text default 'formal',
+    tone text default 'helpful',
+    max_response_length int default 1000,
+    verified_user boolean default false,
+    created_at timestamptz default now()
+);
+
+comment on table user_preferences is 'Preference memory settings for communication style personalization.';
+

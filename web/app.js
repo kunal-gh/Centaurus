@@ -7,6 +7,9 @@ function setTab(name) {
   for (const panel of document.querySelectorAll(".panel")) {
     panel.classList.toggle("active", panel.id === `tab-${name}`);
   }
+  if (name === "dashboard") {
+    refreshDashboard();
+  }
 }
 
 function addBubble(role, text, sources = null) {
@@ -218,6 +221,79 @@ $("identitySeed").addEventListener("click", () => {
 });
 
 $("adminRefresh").addEventListener("click", refreshAdmin);
+
+async function refreshDashboard() {
+  const fNum = $("stat-faithfulness");
+  const rNum = $("stat-relevancy");
+  const gNum = $("stat-graph-coverage");
+  const eNum = $("stat-escalation-rate");
+  const tableBody = $("dashboardLogs");
+  
+  if (fNum) fNum.textContent = "Loading...";
+  if (rNum) rNum.textContent = "Loading...";
+  if (gNum) gNum.textContent = "Loading...";
+  if (eNum) eNum.textContent = "Loading...";
+  
+  try {
+    const data = await getJson("/admin/dashboard-stats");
+    
+    // Update metric highlights
+    if (fNum) fNum.textContent = `${((data.faithfulness ?? 0) * 100).toFixed(0)}%`;
+    if (rNum) rNum.textContent = `${((data.relevancy ?? 0) * 100).toFixed(0)}%`;
+    if (gNum) gNum.textContent = `${((data.graph_coverage ?? 0) * 100).toFixed(0)}%`;
+    if (eNum) eNum.textContent = `${((data.escalation_rate ?? 0) * 100).toFixed(0)}%`;
+    
+    // Render logs
+    tableBody.innerHTML = "";
+    const logs = data.recent_logs ?? [];
+    if (logs.length === 0) {
+      tableBody.innerHTML = `<tr><td colspan="6" class="muted" style="padding: 24px; text-align: center;">No operational queries logged yet.</td></tr>`;
+      return;
+    }
+    
+    for (const log of logs) {
+      const tr = document.createElement("tr");
+      tr.style.borderBottom = "1px solid var(--line)";
+      
+      const timeStr = log.created_at ? new Date(log.created_at).toLocaleTimeString() : "N/A";
+      const queryStr = log.raw_query ?? "N/A";
+      const intentStr = log.intent ?? "unknown";
+      const confidenceVal = Number(log.confidence ?? 0);
+      const confPct = `${(confidenceVal * 100).toFixed(0)}%`;
+      
+      // Visited nodes trace
+      const visited = log.visited_nodes ?? [];
+      const traceHtml = visited.map(node => `<span class="pill" style="padding: 2px 6px; font-size: 10px; margin-right: 4px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.02); display: inline-block;">${node.replace('_agent', '')}</span>`).join("");
+      
+      // Status pill
+      const isEscalated = log.escalated ?? false;
+      const statusPill = isEscalated 
+        ? `<span class="pill bad" style="border-color: var(--danger); color: var(--danger); background: rgba(255,125,125,0.05); border-radius: 999px;">Escalated</span>`
+        : `<span class="pill good" style="border-color: var(--good); color: var(--good); background: rgba(92,224,167,0.05); border-radius: 999px;">Resolved</span>`;
+        
+      tr.innerHTML = `
+        <td style="padding: 12px 16px; white-space: nowrap;" class="muted">${timeStr}</td>
+        <td style="padding: 12px 16px; font-weight: 500; max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${queryStr}">${queryStr}</td>
+        <td style="padding: 12px 16px;"><code>${intentStr}</code></td>
+        <td style="padding: 12px 16px;">${confPct}</td>
+        <td style="padding: 12px 16px; max-width: 300px; overflow-x: auto;">${traceHtml || '<span class="muted">-</span>'}</td>
+        <td style="padding: 12px 16px;">${statusPill}</td>
+      `;
+      tableBody.appendChild(tr);
+    }
+  } catch (err) {
+    if (fNum) fNum.textContent = "Error";
+    if (rNum) rNum.textContent = "Error";
+    if (gNum) gNum.textContent = "Error";
+    if (eNum) eNum.textContent = "Error";
+    tableBody.innerHTML = `<tr><td colspan="6" style="padding: 24px; text-align: center; color: var(--danger);">Failed to retrieve metrics: ${err}</td></tr>`;
+  }
+}
+
+const dbRefreshBtn = $("dashboardRefresh");
+if (dbRefreshBtn) {
+  dbRefreshBtn.addEventListener("click", refreshDashboard);
+}
 
 const apiBaseInput = $("api_base_url");
 if (apiBaseInput) {

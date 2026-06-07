@@ -100,6 +100,7 @@ bookleaf-ai-automation/
     ├── config.py                    # Environment settings validation (Pydantic-Settings)
     ├── database.py                  # Supabase client initializer
     ├── main.py                      # FastAPI routes and endpoint handlers
+    ├── mcp_server.py                # Model Context Protocol (MCP) server tool suite
     ├── mock_data.py                 # Hardcoded data fallbacks for mock mode
     ├── mock_supabase.py             # Mock db client simulating Supabase behaviors
     ├── models.py                    # API models (Pydantic request/response schemas)
@@ -189,6 +190,75 @@ Stores human corrections on escalated cases to construct LoRA DPO tuning dataset
 * `rationale` (`text`): Internal justification.
 * `reviewed_by` (`text`): Reviewer identifier.
 * `created_at` (`timestamp with time zone`, defaults to `now()`): Date resolved.
+
+#### Table: `evaluation_runs`
+Stores aggregate metrics of offline evaluations for regression checking.
+* `id` (`uuid`, primary key, defaults to `gen_random_uuid()`): Run identifier.
+* `run_date` (`timestamp with time zone`, defaults to `CURRENT_TIMESTAMP`): Evaluation timestamp.
+* `test_set_version` (`varchar(50)`, not null): Version label of the evaluated golden set.
+* `faithfulness_score` (`numeric(4,3)`): Average faithfulness metric.
+* `answer_relevancy_score` (`numeric(4,3)`): Average answer relevancy metric.
+* `context_precision_score` (`numeric(4,3)`): Average context precision metric.
+* `resolution_rate` (`numeric(4,3)`): Ratio of queries successfully resolved.
+* `escalation_rate` (`numeric(4,3)`): Ratio of queries escalated.
+
+#### Table: `editors`
+Represents internal editorial and operations staff.
+* `id` (`uuid`, primary key, defaults to `gen_random_uuid()`): Editor identifier.
+* `name` (`text`, not null): Display name of the editor.
+* `department` (`text`): Editorial or operational department.
+* `created_at` (`timestamp with time zone`, defaults to `now()`): Creation timestamp.
+
+#### Table: `campaigns`
+Promotional and marketing campaign details linked to books.
+* `id` (`uuid`, primary key, defaults to `gen_random_uuid()`): Campaign identifier.
+* `book_id` (`uuid`, foreign key referencing `books.id` on delete cascade): Associated book.
+* `name` (`text`, not null): Name of the marketing push.
+* `budget` (`numeric(12,2)`, defaults to `0.0`): Allocated budget.
+* `start_date` (`date`): Campaign launch date.
+* `end_date` (`date`): Campaign end date.
+* `created_at` (`timestamp with time zone`, defaults to `now()`): Creation timestamp.
+
+#### Table: `invoices`
+Billing statements linked to reviewer audits and payouts.
+* `id` (`uuid`, primary key, defaults to `gen_random_uuid()`): Invoice identifier.
+* `invoice_number` (`text`, unique, not null): Unique alphanumeric invoice code.
+* `amount` (`numeric(12,2)`, not null): Invoice amount.
+* `status` (`text` check `pending`, `approved`, `paid`, `rejected`): Invoice verification state.
+* `reviewer_id` (`uuid`, foreign key referencing `authors.id`): Author profile linked as reviewer/payee.
+* `created_at` (`timestamp with time zone`, defaults to `now()`): Creation timestamp.
+
+#### Table: `support_tickets`
+Helpdesk tickets linked to author accounts.
+* `id` (`uuid`, primary key, defaults to `gen_random_uuid()`): Ticket record identifier.
+* `ticket_id` (`text`, unique, not null): Unique alphanumeric ticket code (e.g. `TCK-1001`).
+* `author_id` (`uuid`, foreign key referencing `authors.id` on delete cascade): Submitting author profile.
+* `status` (`text` check `open`, `in_progress`, `resolved`, `closed`): Ticket lifecycle state.
+* `priority` (`text` check `low`, `medium`, `high`, `critical`): Ticket severity level.
+* `description` (`text`): Description of the author's issue.
+* `created_at` (`timestamp with time zone`, defaults to `now()`): Row creation timestamp.
+
+#### Table: `policy_documents`
+Versioned policy documents subject to lifecycle governance.
+* `id` (`uuid`, primary key, defaults to `gen_random_uuid()`): Policy document identifier.
+* `title` (`text`, not null): Document title.
+* `section` (`text`, not null): Operational section category.
+* `content` (`text`, not null): Raw text content chunks.
+* `version` (`integer`, defaults to `1`): Document revision version.
+* `approval_status` (`text` check `draft`, `pending_approval`, `approved`, `deprecated`): Governance status.
+* `owner_editor_id` (`uuid`, foreign key referencing `editors.id`): Publishing owner editor.
+* `last_verified_at` (`timestamp with time zone`, defaults to `now()`): Audit timestamp.
+* `created_at` (`timestamp with time zone`, defaults to `now()`): Document creation timestamp.
+
+#### Table: `user_preferences`
+Tone, style, and verification state variables used in personalization memory.
+* `id` (`uuid`, primary key, defaults to `gen_random_uuid()`): Preferences row identifier.
+* `author_id` (`uuid`, foreign key referencing `authors.id` on delete cascade): Target user profile.
+* `communication_style` (`text`, defaults to `'formal'`): Preference key (e.g., `'concise'`, `'verbose'`).
+* `tone` (`text`, defaults to `'helpful'`): Target tone key (e.g., `'technical'`, `'casual'`).
+* `max_response_length` (`integer`, defaults to `1000`): Desired response length ceiling.
+* `verified_user` (`boolean`, defaults to `false`): Verification gate validation flag.
+* `created_at` (`timestamp with time zone`, defaults to `now()`): Row creation timestamp.
 
 ---
 
@@ -521,58 +591,67 @@ Components in `backend/services/retrievers/` responsible for vector layer data f
 
 ## 6. LANGGRAPH MULTI-AGENT ORCHESTRATION
 
-Centaurus handles requests using a stateful, cyclic workflow orchestrated by **LangGraph**. The execution logic is defined in `backend/agents/`.
+Centaurus handles requests using a stateful, cyclic multi-agent workflow orchestrated by **LangGraph**. Instead of a linear script execution, the processing state routes dynamically between specialized agent nodes.
 
 ```
-      +-------------+
-      |  Start App  |
-      +-------------+
-             |
-             v
-      +-------------+
-      | Intent Node |
-      +-------------+
-             |
-             v
-     +---------------+
-     | Identity Node |
-     +---------------+
-             |
-             v
-     +-------------------+
-     |  Retrieval Router |
-     +-------------------+
-        /             \
-       /               \
-      v                 v
-+-----------+     +------------+
-| DB        |     |  KB Only   |
-| Retrieval |     |  Retrieval |
-+-----------+     +------------+
-      \                 /
-       \               /
-        v             v
-     +------------------+
-     | Confidence Node  |
-     +------------------+
-        /             \
-       /               \ (Fail)
-      /                 v
-     /            +------------+
-    |             | Escalation |
-    |             | Node       |
-    |             +------------+
-    v                   |
-+------------+          |
-| Generation |          |
-| Node       |          |
-+------------+          |
-      \                 /
-       \               /
-        v             v
-       +---------------+
-       |    End App    |
-       +---------------+
+       +-----------------------+
+       |   Entry: memory       | <--- Loads preferences & Turn History
+       +-----------------------+
+                   |
+                   v
+       +-----------------------+
+       |   intent              | <--- Classifies query & extracts entities
+       +-----------------------+
+                   |
+                   v
+       +-----------------------+
+       |   identity            | <--- Unifies user profile signals
+       +-----------------------+
+                   |
+         +---------+---------+
+         | (query_type check) |
+         +---------+---------+
+          /                 \
+  (db_query)               (kb_query)
+        /                     \
+       v                       v
++------------------+     +------------------+
+| db_dispatcher    |     |                  |
++------------------+     |                  |
+     /        \          |                  |
+(Royalty)  (Publishing)  |                  |
+   /            \        |                  |
+  v              v       |                  |
++----------+ +---------+ |                  |
+| royalty_ | | publish_| |                  |
+| agent    | | agent   | |                  |
++----------+ +---------+ |                  |
+     \          /        |                  |
+      \        /         |                  |
+       v      v          |                  |
++------------------+     |                  |
+|   kb_retrieval   | <---+                  |
+| (Knowledge Agent)|                        |
++------------------+                        |
+        |                                   |
+        v                                   |
++------------------+                        |
+|   eval_node      | <----------------------+
+| (Eval Agent)     |
++------------------+
+     /        \
+(Escalate)  (Safe / Approved)
+   /            \
+  v              v
++----------+ +------------+
+|escalation| | generation |
++----------+ +------------+
+    \             /
+     \           /
+      v         v
+    +-------------+
+    |   END       |
+    +-------------+
 ```
 
 ### 6.1 AgentState Definition (`backend/agents/state.py`)
@@ -611,86 +690,127 @@ class AgentState(TypedDict):
     escalation_reason: Optional[str]
     response: str
     next_node: str
+
+    # Memory & Swarm Extensions
+    history_summary: Optional[str]
+    user_preferences: dict
+    quality_eval_scores: dict
+    visited_nodes: list[str]
 ```
 
-### 6.2 Specialist Nodes (`backend/agents/nodes.py`)
-Each node represents a distinct process block:
-1. **`intent_node`:** Calls `intent_classifier`. Determines intent class and extracts parameters. Updates `query_type`.
-2. **`identity_node`:** Evaluates incoming user credentials. Fetches author records and calls `identity_unifier` fuzzy matcher. Updates `author_id` and logs borderline cases to manual review queue in `identity_mappings`.
-3. **`db_retrieval_node`:** Fetches author profile and connected books from Postgres. Resolves book title ambiguities.
-4. **`kb_retrieval_node`:** If an author UUID exists, calls `graph_retriever` to query Neo4j. Simultaneously queries `knowledge_base` hybrid search. Merges graph and vector context.
-5. **`confidence_node`:** Invokes the scorer. Checks composite metrics against the `0.80` gate. Sets `escalated` and routes state to appropriate node.
-6. **`generation_node`:** Synthesizes markdown answer using consolidated database/RAG contexts.
-7. **`escalation_node`:** Generates standard escalation message, logs escalation reason, and flags the log row.
+### 6.2 Specialist Swarm Nodes (`backend/agents/nodes.py`)
+Each node represents a specialized agent or system dispatcher:
+1. **`memory_node`:** Memory Agent. Fetches `user_preferences` and summaries of previous turns (`history_summary`) to personalize the context.
+2. **`intent_node`:** Intent Agent. Classifies intent class and parses entity values. Sets `query_type`.
+3. **`identity_node`:** Identity Agent. Computes signal match confidence using the unifier rules, mapping user handles to SQL author profiles.
+4. **`db_retrieval_node`:** DB Dispatcher. Inspects query intent to route to Royalty or Publishing specialists.
+5. **`royalty_agent_node`:** Royalty Agent. Queries billing contracts, royalty records, and invoices. Checks for multi-book disambiguations.
+6. **`publishing_agent_node`:** Publishing Agent. Queries publication releases, book statuses, inventory copies, and marketing campaigns.
+7. **`kb_retrieval_node`:** Knowledge Agent. Performs GraphRAG traversals (Neo4j) alongside lexical/vector hybrid search (Qdrant).
+8. **`eval_node`:** Evaluation Agent. Assesses answer groundedness and faithfulness before release. Routes to escalation on low scores.
+9. **`generation_node`:** Generation Agent. Integrates preference formatting styles and appends verified governance lineage metadata.
+10. **`escalation_node`:** Escalation Agent. Suspends execution, generating an explanation pill for the manual review queue.
 
 ### 6.3 Routing & Compilation (`backend/agents/supervisor.py`)
-Defines the state transitions.
+Defines the state transitions:
 
 ```python
 from langgraph.graph import StateGraph, END
+from langgraph.checkpoint.memory import MemorySaver
 from backend.agents.state import AgentState
-from backend.agents.nodes import (
-    intent_node, identity_node, db_retrieval_node,
-    kb_retrieval_node, confidence_node, generation_node, escalation_node
+from backend.agents import nodes
+
+workflow = StateGraph(AgentState)
+
+# Add Nodes
+workflow.add_node("memory", nodes.memory_node)
+workflow.add_node("intent", nodes.intent_node)
+workflow.add_node("identity", nodes.identity_node)
+workflow.add_node("db_dispatcher", nodes.db_retrieval_node)
+workflow.add_node("royalty_agent", nodes.royalty_agent_node)
+workflow.add_node("publishing_agent", nodes.publishing_agent_node)
+workflow.add_node("kb_retrieval", nodes.kb_retrieval_node)
+workflow.add_node("eval_node", nodes.eval_node)
+workflow.add_node("generation", nodes.generation_node)
+workflow.add_node("escalation", nodes.escalation_node)
+
+# Set Entry
+workflow.set_entry_point("memory")
+
+# Transitions
+workflow.add_edge("memory", "intent")
+workflow.add_edge("intent", "identity")
+
+# Conditional: DB vs KB retrieval routing
+def route_retrieval(state: AgentState):
+    if state.get("query_type") == "db_query":
+        return "db_dispatcher"
+    return "kb_retrieval"
+
+workflow.add_conditional_edges(
+    "identity",
+    route_retrieval,
+    {"db_dispatcher": "db_dispatcher", "kb_retrieval": "kb_retrieval"}
 )
 
-# Initialize builder
-builder = StateGraph(AgentState)
+# Conditional: Royalty vs Publishing agent routing
+def route_db_agents(state: AgentState):
+    return state.get("next_node", "publishing_agent")
 
-# Add Node definitions
-builder.add_node("intent_node", intent_node)
-builder.add_node("identity_node", identity_node)
-builder.add_node("db_retrieval_node", db_retrieval_node)
-builder.add_node("kb_retrieval_node", kb_retrieval_node)
-builder.add_node("confidence_node", confidence_node)
-builder.add_node("generation_node", generation_node)
-builder.add_node("escalation_node", escalation_node)
-
-# Set Entry Point
-builder.set_entry_point("intent_node")
-
-# Define Static Edges
-builder.add_edge("intent_node", "identity_node")
-
-# Define Conditional Routing
-def retrieval_router(state: AgentState) -> str:
-    """Routes to DB retrieval if query requires relational author records."""
-    if state["query_type"] == "db_query":
-        return "db_retrieval_node"
-    return "kb_retrieval_node"
-
-builder.add_conditional_edges(
-    "identity_node",
-    retrieval_router,
-    {
-        "db_retrieval_node": "db_retrieval_node",
-        "kb_retrieval_node": "kb_retrieval_node"
-    }
+workflow.add_conditional_edges(
+    "db_dispatcher",
+    route_db_agents,
+    {"royalty_agent": "royalty_agent", "publishing_agent": "publishing_agent"}
 )
 
-builder.add_edge("db_retrieval_node", "kb_retrieval_node")
-builder.add_edge("kb_retrieval_node", "confidence_node")
+# Conditional: After royalty
+def route_after_royalty(state: AgentState):
+    if state.get("next_node") == "escalation_node":
+        return "escalation"
+    if state.get("next_node") == "end":
+        return END
+    return "kb_retrieval"
 
-def confidence_router(state: AgentState) -> str:
-    """Decides if the state passes to generator or escalates to reviewer."""
-    if state["escalated"]:
-        return "escalation_node"
-    return "generation_node"
-
-builder.add_conditional_edges(
-    "confidence_node",
-    confidence_router,
-    {
-        "escalation_node": "escalation_node",
-        "generation_node": "generation_node"
-    }
+workflow.add_conditional_edges(
+    "royalty_agent",
+    route_after_royalty,
+    {"escalation": "escalation", "kb_retrieval": "kb_retrieval", END: END}
 )
 
-builder.add_edge("generation_node", END)
-builder.add_edge("escalation_node", END)
+# Conditional: After publishing
+def route_after_publishing(state: AgentState):
+    if state.get("next_node") == "escalation_node":
+        return "escalation"
+    if state.get("next_node") == "end":
+        return END
+    return "kb_retrieval"
 
-# Compile Graph State Machine
-centaurus_app = builder.compile()
+workflow.add_conditional_edges(
+    "publishing_agent",
+    route_after_publishing,
+    {"escalation": "escalation", "kb_retrieval": "kb_retrieval", END: END}
+)
+
+workflow.add_edge("kb_retrieval", "eval_node")
+
+# Conditional: After evaluation
+def route_generation(state: AgentState):
+    if state.get("escalated"):
+        return "escalation"
+    return "generation"
+
+workflow.add_conditional_edges(
+    "eval_node",
+    route_generation,
+    {"escalation": "escalation", "generation": "generation"}
+)
+
+workflow.add_edge("generation", END)
+workflow.add_edge("escalation", END)
+
+# Compile
+memory = MemorySaver()
+centaurus_app = workflow.compile(checkpointer=memory)
 ```
 
 ---
@@ -1137,7 +1257,44 @@ The following authors are pre-seeded in the database to test different retrieval
 
 ---
 
-## 14. PROJECT GLOSSARY
+## 14. MODEL CONTEXT PROTOCOL (MCP) INTERFACE
+
+Centaurus exposes a composable Model Context Protocol (MCP) server at `backend/mcp_server.py`. It enables external AI agents (like Claude Desktop or Cursor) to call Centaurus tool suites directly.
+
+### 14.1 Exposed Tools:
+* **Identity Tools:**
+  * `resolve_identity(email, phone, name, instagram)`: Fuzzy matches multi-channel signals to profile UUIDs.
+  * `update_user_signals(author_id, email, phone, name, instagram)`: Updates identity fields.
+* **Knowledge Tools:**
+  * `search_policies(query, top_k)`: Performs hybrid search with lifecycle filters.
+  * `get_knowledge_citation(chunk_id)`: Retrieves version and editor provenance.
+* **Graph Tools:**
+  * `execute_cypher_read(query, parameters)`: Runs read Cypher queries against Neo4j.
+  * `get_entity_relations(entity_id)`: Traces direct 1-hop relationships.
+* **Memory Tools:**
+  * `fetch_user_preferences(author_id)`: Retrieves tone and style preferences.
+  * `store_episodic_memory(author_id, summary)`: Records session summaries.
+* **Reviewer & Governance Tools:**
+  * `fetch_escalations_queue()`: Gets queries pending human review.
+  * `submit_decision(query_log_id, approved_response, rationale, reviewed_by)`: Saves preference pairs for DPO alignment.
+  * `register_policy_document(title, section, content, version, owner_editor_id)`: Registers new policy records.
+  * `deprecate_policy(policy_id)`: Deprecates active policies.
+
+---
+
+## 15. QUALITY EVALUATION DASHBOARD & METRICS
+
+Centaurus implements a live observability dashboard for RAG quality monitoring:
+* **Aggregation Endpoint (`/admin/dashboard-stats`):** Computes recent averages for:
+  * **Faithfulness:** Context groundedness checks (checking that the answer is derived directly from the source manual).
+  * **Answer Relevancy:** Semantic match between query intent and agent response.
+  * **Graph Coverage:** Ratio of facts drawn from Neo4j traversals.
+  * **Escalation Rate:** Percentage of requests halted by the safety gate.
+* **Dashboard Interface:** Accessible at `/app/#dashboard`, displaying a grid of aggregate metrics cards and a real-time table of recent agent routes, showing the exact traversal path (e.g., `[memory, intent, identity, royalty, knowledge, eval, generation]`) of the agent swarm.
+
+---
+
+## 16. PROJECT GLOSSARY
 
 * **RAG (Retrieval-Augmented Generation):** Enhancing LLM prompts by injecting relevant context retrieved from vector stores at runtime.
 * **GraphRAG:** Injecting topological knowledge graph data (nodes and relationships) into the prompt context to resolve multi-hop relational queries.

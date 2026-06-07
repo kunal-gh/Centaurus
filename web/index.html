@@ -75,6 +75,7 @@
         <button class="tab active" data-tab="playground">Playground</button>
         <button class="tab" data-tab="identity">Identity Lab</button>
         <button class="tab" data-tab="review">Review Queue</button>
+        <button class="tab" data-tab="dashboard">Quality Dashboard</button>
       </nav>
 
       <main class="content">
@@ -140,10 +141,69 @@
             <pre class="code" id="adminRaw" style="display:none"></pre>
           </div>
         </section>
+
+        <section id="tab-dashboard" class="panel">
+          <div class="card">
+            <div class="row space" style="margin-bottom: 24px;">
+              <div>
+                <div class="section-label">Performance & Reliability</div>
+                <h3>Quality Evaluation Dashboard</h3>
+                <p class="muted">RAGAS and DeepEval aligned metrics monitored across recent runs.</p>
+              </div>
+              <button id="dashboardRefresh">Refresh Stats</button>
+            </div>
+            
+            <div class="metrics-grid">
+              <div class="metric-card good">
+                <div class="metric-title">Faithfulness</div>
+                <div class="metric-value good" id="stat-faithfulness">0%</div>
+                <p class="muted" style="font-size: 12px; margin: 0; line-height: 1.4;">Groundedness; no hallucinations beyond context.</p>
+              </div>
+              <div class="metric-card cyan">
+                <div class="metric-title">Answer Relevancy</div>
+                <div class="metric-value cyan" id="stat-relevancy">0%</div>
+                <p class="muted" style="font-size: 12px; margin: 0; line-height: 1.4;">Relevance of the response to the user query.</p>
+              </div>
+              <div class="metric-card gold">
+                <div class="metric-title">Graph Coverage</div>
+                <div class="metric-value gold" id="stat-graph-coverage">0%</div>
+                <p class="muted" style="font-size: 12px; margin: 0; line-height: 1.4;">Ratio of graph-derived facts retrieved & used.</p>
+              </div>
+              <div class="metric-card danger">
+                <div class="metric-title">Escalation Rate</div>
+                <div class="metric-value danger" id="stat-escalation-rate">0%</div>
+                <p class="muted" style="font-size: 12px; margin: 0; line-height: 1.4;">Percentage of queries routed to human review.</p>
+              </div>
+            </div>
+
+            <div style="margin-top: 16px;">
+              <h3 style="margin-bottom: 16px; font-size: 1.15rem;">Agent Routing & Query Log</h3>
+              <div class="table-container">
+                <table class="dashboard-table">
+                  <thead>
+                    <tr>
+                      <th>Time</th>
+                      <th>Query</th>
+                      <th>Intent</th>
+                      <th>Confidence</th>
+                      <th>Agent Trace Path</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody id="dashboardLogs">
+                    <tr>
+                      <td colspan="6" class="muted" style="padding: 24px; text-align: center;">No logs loaded. Click Refresh Stats.</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
       </main>
 
       <footer class="footer">
-        <span class="muted">Endpoints: <code>/chat</code>, <code>/identity/resolve</code>, <code>/admin/identity-review</code>, <code>/health</code></span>
+        <span class="muted">Endpoints: <code>/chat</code>, <code>/identity/resolve</code>, <code>/admin/identity-review</code>, <code>/admin/dashboard-stats</code>, <code>/health</code></span>
       </footer>
     </div>
 

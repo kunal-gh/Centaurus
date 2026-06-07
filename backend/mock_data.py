@@ -175,10 +175,146 @@ def load_mock_tables() -> Dict[str, List[Dict[str, Any]]]:
         },
     ]
 
+    editors = [
+        {"id": "30000000-0000-0000-0000-000000000001", "name": "Alice Smith", "department": "Editorial"},
+        {"id": "30000000-0000-0000-0000-000000000002", "name": "Bob Jones", "department": "Marketing"},
+        {"id": "30000000-0000-0000-0000-000000000003", "name": "Charlie Brown", "department": "Operations"},
+    ]
+
+    campaigns = [
+        {
+            "id": "40000000-0000-0000-0000-000000000001",
+            "book_id": "10000000-0000-0000-0000-000000000001",
+            "name": "Winter Reads Push",
+            "budget": 1500.00,
+            "start_date": "2025-11-20",
+            "end_date": "2025-12-20",
+        },
+        {
+            "id": "40000000-0000-0000-0000-000000000002",
+            "book_id": "10000000-0000-0000-0000-000000000003",
+            "name": "Awards Campaign 2025",
+            "budget": 2500.00,
+            "start_date": "2025-10-05",
+            "end_date": "2025-11-05",
+        },
+    ]
+
+    invoices = [
+        {
+            "id": "50000000-0000-0000-0000-000000000001",
+            "invoice_number": "INV-2025-001",
+            "amount": 450.00,
+            "status": "approved",
+            "reviewer_id": "00000000-0000-0000-0000-000000000001",
+        },
+        {
+            "id": "50000000-0000-0000-0000-000000000002",
+            "invoice_number": "INV-2025-002",
+            "amount": 340.00,
+            "status": "paid",
+            "reviewer_id": "00000000-0000-0000-0000-000000000003",
+        },
+    ]
+
+    support_tickets = [
+        {
+            "id": "60000000-0000-0000-0000-000000000001",
+            "ticket_id": "TCK-1001",
+            "author_id": "00000000-0000-0000-0000-000000000001",
+            "status": "resolved",
+            "priority": "medium",
+            "description": "Cannot download royalties statement PDF",
+        },
+        {
+            "id": "60000000-0000-0000-0000-000000000002",
+            "ticket_id": "TCK-1002",
+            "author_id": "00000000-0000-0000-0000-000000000004",
+            "status": "open",
+            "priority": "high",
+            "description": "Update royalty payout bank details",
+        },
+    ]
+
+    policy_documents = [
+        {
+            "id": "70000000-0000-0000-0000-000000000001",
+            "title": "Royalties Disbursement Guide",
+            "section": "royalty",
+            "content": "Royalties are calculated quarterly and distributed within 60 days of close.",
+            "version": 1,
+            "approval_status": "approved",
+            "owner_editor_id": "30000000-0000-0000-0000-000000000003",
+        },
+        {
+            "id": "70000000-0000-0000-0000-000000000002",
+            "title": "Author Copy Distribution Guide",
+            "section": "author_copy",
+            "content": "Author copies are dispatched within 7-10 days of release.",
+            "version": 1,
+            "approval_status": "approved",
+            "owner_editor_id": "30000000-0000-0000-0000-000000000001",
+        },
+        {
+            "id": "70000000-0000-0000-0000-000000000003",
+            "title": "Workspace Access Policy",
+            "section": "dashboard",
+            "content": "Access keys expire after 90 days. Password reset must be initiated via self-service portal.",
+            "version": 2,
+            "approval_status": "approved",
+            "owner_editor_id": "30000000-0000-0000-0000-000000000003",
+        },
+        {
+            "id": "70000000-0000-0000-0000-000000000004",
+            "title": "Launch Program Operations",
+            "section": "addons",
+            "content": "Launch sprint includes standard visibility coordination.",
+            "version": 1,
+            "approval_status": "approved",
+            "owner_editor_id": "30000000-0000-0000-0000-000000000002",
+        },
+    ]
+
+    user_preferences = [
+        {
+            "id": "80000000-0000-0000-0000-000000000001",
+            "author_id": "00000000-0000-0000-0000-000000000001",
+            "communication_style": "concise",
+            "tone": "professional",
+            "max_response_length": 500,
+            "verified_user": True,
+        },
+        {
+            "id": "80000000-0000-0000-0000-000000000002",
+            "author_id": "00000000-0000-0000-0000-000000000002",
+            "communication_style": "verbose",
+            "tone": "technical",
+            "max_response_length": 1500,
+            "verified_user": False,
+        },
+        {
+            "id": "80000000-0000-0000-0000-000000000003",
+            "author_id": "00000000-0000-0000-0000-000000000003",
+            "communication_style": "formal",
+            "tone": "helpful",
+            "max_response_length": 1000,
+            "verified_user": True,
+        },
+    ]
+
     return {
         "authors": authors,
         "books": books,
         "query_logs": [],
         "identity_mappings": [],
         "knowledge_base": knowledge_base,
+        "editors": editors,
+        "campaigns": campaigns,
+        "invoices": invoices,
+        "support_tickets": support_tickets,
+        "policy_documents": policy_documents,
+        "user_preferences": user_preferences,
+        "reviewer_decisions": [],
+        "evaluation_runs": []
     }
+

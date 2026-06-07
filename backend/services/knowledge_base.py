@@ -52,13 +52,16 @@ def build_kb_cache(
     return []
 
 
-def search_knowledge_base_hybrid(query: str, top_k: int = 3) -> List[Dict[str, Any]]:
+def search_knowledge_base_hybrid(query: str, top_k: int = 3, user_preferences: dict = None) -> List[Dict[str, Any]]:
     """
-    Performs a hybrid search and returns structured results with metadata.
-    Supported in both mock (keyword overlap) and live (Qdrant Dense+Sparse RRF) modes.
+    Performs a hybrid search and applies Knowledge Governance filter rules:
+    - Excludes policies with approval_status = 'deprecated'
+    - Restricts approval_status in ('draft', 'pending_approval') to verified users
+    - Injects data lineage citations (version, editor owner) into metadata
     """
     build_kb_cache()
 
+    raw_results = []
     if settings.is_mock_mode:
         q = (query or "").lower()
         q_terms = {t for t in q.replace("?", " ").replace(".", " ").split() if len(t) > 2}
@@ -75,14 +78,62 @@ def search_knowledge_base_hybrid(query: str, top_k: int = 3) -> List[Dict[str, A
                 scored_entries.append({
                     "text": text,
                     "score": float(score),
-                    "metadata": entry["metadata"]
+                    "metadata": dict(entry["metadata"])
                 })
 
         scored_entries.sort(key=lambda x: x["score"], reverse=True)
-        return scored_entries[:top_k]
+        raw_results = scored_entries[:top_k]
+    else:
+        # Live hybrid vector search in Qdrant
+        raw_results = qdrant_retriever.search_hybrid(query, top_k=top_k)
 
-    # Live hybrid vector search in Qdrant
-    return qdrant_retriever.search_hybrid(query, top_k=top_k)
+    # ── Knowledge Governance Filters ──
+    from backend.database import get_supabase
+    
+    is_verified = False
+    if user_preferences and user_preferences.get("verified"):
+        is_verified = True
+        
+    try:
+        policies = get_supabase().table("policy_documents").select("*, editors(name)").execute().data
+    except Exception:
+        policies = []
+
+    # Map policy records by their section tag
+    policy_map = {p["section"].lower(): p for p in policies}
+
+    filtered_results = []
+    for res in raw_results:
+        metadata = res.get("metadata", {})
+        section_tag = metadata.get("section", "").lower()
+        
+        # Check against database governance
+        policy = policy_map.get(section_tag)
+        if policy:
+            status = policy.get("approval_status", "approved")
+            version = policy.get("version", 1)
+            owner = policy.get("editors", {}).get("name", "System")
+            
+            # Rule 1: Exclude deprecated policies
+            if status == "deprecated":
+                continue
+                
+            # Rule 2: Limit draft/pending policies to verified users
+            if status in ("draft", "pending_approval") and not is_verified:
+                continue
+                
+            # Rule 3: Append version and owner provenance to metadata for citation logging
+            metadata["version"] = version
+            metadata["owner"] = owner
+            metadata["approval_status"] = status
+            
+            # Prepend a warning badge to the text if it is draft
+            if status in ("draft", "pending_approval"):
+                res["text"] = f"[DRAFT POLICY - INTERNAL USE ONLY]\n{res['text']}"
+        
+        filtered_results.append(res)
+        
+    return filtered_results[:top_k]
 
 
 def search_knowledge_base(query: str, top_k: int = 1) -> tuple:

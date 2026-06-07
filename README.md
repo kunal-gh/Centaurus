@@ -132,34 +132,27 @@ Centaurus is specifically constructed to highlight deep technical competency in 
 
 ## 🧠 Core Subsystem Deep Dive
 
-### 1. LangGraph State Machine
+### 1. LangGraph State Machine & Swarm Orchestration
 Rather than using fragile prompt-chaining loops, Centaurus models the reasoning path as a cyclic graph. The state is represented by a central, immutable `AgentState` containing:
-- `messages`: Standard chat history array.
-- `entities`: Extracted metadata keys (author emails, book IDs, telephone numbers).
-- `resolved_records`: Raw payload database dicts.
-- `retrieved_context`: Fused vector + graph contexts.
-- `confidence_score`: A normalized value representing lookup and generation assurance.
-- `safety_gate_passed`: Boolean indicator verifying whether the interaction complies with governance parameters.
+- `history_summary`: Turn context summary of previous user interactions.
+- `user_preferences`: Stored style preferences (`concise`, `verbose`) and communication tone (`technical`, `helpful`).
+- `entities`: Extracted metadata tags (emails, names, phone numbers).
+- `db_result`: Relational payloads fetched by database agents (books, campaigns, invoices, tickets).
+- `graph_text` / `kb_text`: Formatted subgraph facts and vector manual chunks.
+- `quality_eval_scores`: Inline groundedness (faithfulness) and relevancy metrics computed before final reply synthesis.
+- `visited_nodes`: Route trace log tracking agent traversals.
 
-```python
-# backend/agents/state.py
-from typing import List, Dict, Any, TypedDict
-from langchain_core.messages import BaseMessage
-
-class AgentState(TypedDict):
-    messages: List[BaseMessage]
-    entities: Dict[str, Any]
-    resolved_records: Dict[str, Any]
-    retrieved_context: List[Dict[str, Any]]
-    confidence_score: float
-    safety_gate_passed: bool
-    escalation_reason: str
-```
-
-Nodes correspond to discrete processing services:
-- **Identity Agent:** Uses weighted string-matching algorithms and LLM-assisted disambiguation to match incoming handles (emails, phones, Instagram profiles) to canonical records.
-- **Knowledge Agent:** Coordinates retrieval over Vector (Qdrant) and Graph (Neo4j) backends.
-- **Escalation Agent:** Inspects confidence parameters. If safety bounds are violated, it stops the graph traversal, records state checkpoints, and logs the payload to the human approval queue.
+The platform coordinates cognitive processing across 10 specialized agent nodes:
+- **Memory Agent:** Resolves history summaries and style configurations on startup.
+- **Intent Agent:** Classifies intent category and extracts query entities.
+- **Identity Agent:** Fuzzy matches signals (email, phone, Instagram, name) to link user profiles.
+- **DB Dispatcher:** Evaluates request intent to route tasks to Royalty or Publishing specialists.
+- **Royalty Agent:** Queries financial metrics, contracts, and invoicing records.
+- **Publishing Agent:** Queries book details, status timelines, and campaigns.
+- **Knowledge Agent (GraphRAG):** Traces multi-hop Neo4j paths and searches Qdrant collections.
+- **Evaluation Agent (Safety Gate):** Conducts inline quality checks; triggers escalations if confidence scores fall below threshold.
+- **Generation Agent:** Restructures response according to style preferences and appends provenance metadata citations.
+- **Escalation Agent:** Logs failure details and updates the human review queue.
 
 ---
 
@@ -306,7 +299,16 @@ Launch the FastAPI gateway:
 ```bash
 uvicorn backend.main:app --reload --port 8000
 ```
-Open your browser to `http://localhost:8000/docs` to explore the OpenAPI schema and start processing queries.
+Open your browser to `http://localhost:8000/app/` to access the playground UI.
+
+### 5. Start the Model Context Protocol (MCP) Server
+Boot the stdio MCP server to expose the 12 operational tool pipelines to external agents/Cursor/Claude Desktop:
+```bash
+python backend/mcp_server.py
+```
+
+### 6. View the Quality Dashboard
+In the Playground UI (`http://localhost:8000/app/`), navigate to the **Quality Dashboard** tab to view real-time RAGAS metrics, faithfulness averages, graph coverage stats, and trace path arrays.
 
 ---
 

@@ -77,3 +77,32 @@ insert into knowledge_base (category, question, answer) values
 
 ('sales', 'How do I check my book sales?',
  'Sales data refreshes on a rolling basis in the workspace and monthly consolidated reporting is usually sent during the first week of the month.');
+
+insert into editors (name, department) values
+('Alice Smith', 'Editorial'),
+('Bob Jones', 'Marketing'),
+('Charlie Brown', 'Operations');
+
+insert into campaigns (book_id, name, budget, start_date, end_date) values
+((select id from books where book_title = 'Echoes of Srinagar'), 'Winter Reads Push', 1500.00, '2025-11-20', '2025-12-20'),
+((select id from books where book_title = 'Letters to Nobody'), 'Awards Campaign 2025', 2500.00, '2025-10-05', '2025-11-05');
+
+insert into invoices (invoice_number, amount, status, reviewer_id) values
+('INV-2025-001', 450.00, 'approved', (select id from authors where email = 'sara.johnson@xyz.com')),
+('INV-2025-002', 340.00, 'paid', (select id from authors where email = 'priya.sharma@yahoo.com'));
+
+insert into support_tickets (ticket_id, author_id, status, priority, description) values
+('TCK-1001', (select id from authors where email = 'sara.johnson@xyz.com'), 'resolved', 'medium', 'Cannot download royalties statement PDF'),
+('TCK-1002', (select id from authors where email = 'rahul.das@outlook.com'), 'open', 'high', 'Update royalty payout bank details');
+
+insert into policy_documents (title, section, content, version, approval_status, owner_editor_id) values
+('Royalties Disbursement Guide', 'royalty', 'Royalties are calculated quarterly and distributed within 60 days of close.', 1, 'approved', (select id from editors where name = 'Charlie Brown')),
+('Author Copy Distribution Guide', 'author_copy', 'Author copies are dispatched within 7-10 days of release.', 1, 'approved', (select id from editors where name = 'Alice Smith')),
+('Workspace Access Policy', 'dashboard', 'Access keys expire after 90 days. Password reset must be initiated via self-service portal.', 2, 'approved', (select id from editors where name = 'Charlie Brown')),
+('Launch Program Operations', 'addons', 'Launch sprint includes standard visibility coordination.', 1, 'approved', (select id from editors where name = 'Bob Jones'));
+
+insert into user_preferences (author_id, communication_style, tone, max_response_length, verified_user) values
+((select id from authors where email = 'sara.johnson@xyz.com'), 'concise', 'professional', 500, true),
+((select id from authors where email = 'arjun.mehta@gmail.com'), 'verbose', 'technical', 1500, false),
+((select id from authors where email = 'priya.sharma@yahoo.com'), 'formal', 'helpful', 1000, true);
+

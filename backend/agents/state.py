@@ -39,5 +39,12 @@ class AgentState(TypedDict):
     escalation_reason: Optional[str]
     response: str
     
+    # ── Waves 2 & 3: Memory and Evaluation Dashboard State Extensions ───────────
+    history_summary: Optional[str]        # Episodic Memory summary of previous sessions
+    user_preferences: Dict[str, Any]      # Preference Memory (style, tone, verified_user, etc.)
+    quality_eval_scores: Dict[str, float]  # Live quality metrics (faithfulness, relevancy, graph_coverage)
+    visited_nodes: List[str]              # List of nodes visited for routing audit logs
+    
     # Routing
     next_node: str
+
