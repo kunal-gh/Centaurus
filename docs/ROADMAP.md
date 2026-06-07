@@ -1,265 +1,307 @@
 # Centaurus Roadmap
 
+> **v2 — revised after full plan evaluation.** See [`STRATEGIC_EVALUATION.md`](STRATEGIC_EVALUATION.md) for rationale, deferred items, and plan comparison.
+
 ## Direction
 
-Centaurus should mature from a strong operational copilot foundation into a production-style knowledge worker agent platform. The right path is not maximum complexity on day one. The right path is a layered build where each phase adds a meaningful engineering signal and unlocks the next.
+Centaurus matures from a working operational copilot into a **production-minded knowledge worker agent platform**. The build is layered, but evals and observability start early — not after agents ship.
 
 ## Guiding Principles
 
-- Keep the current working FastAPI pipeline as the control plane until a better state model is ready.
-- Prefer free-tier or self-hosted defaults.
-- Upgrade existing modules instead of replacing them blindly.
-- Add infrastructure only when the application layer is ready to justify it.
-- Make every phase legible on a resume and defensible in an interview.
+- Keep FastAPI as the control plane; LangGraph orchestrates, API stays stable.
+- Free-tier or self-hosted defaults everywhere.
+- Upgrade existing modules; add infrastructure only when the app layer needs it.
+- Every wave has exit criteria and a resume signal you can defend in an interview.
+- Depth over integration soup.
 
-## Phase 1: Real Retrieval Foundation
+## Current State (Wave 0 — Complete)
 
-### Goal
+- FastAPI pipeline with identity, records, lightweight RAG, escalation, reviewer queue
+- Mock mode, web UI, Streamlit console, seed data
+- **Not yet built:** Qdrant, Neo4j, LangGraph, eval CI, Langfuse, MCP, Docker Compose full stack
 
-Replace the current Markdown-plus-cosine baseline with a true retrieval subsystem.
+---
 
-### Build
+## Wave 1: Retrieval + Eval Baseline
 
-- semantic or recursive chunking with chunk metadata
-- dense embeddings
-- sparse retrieval or BM25 support
-- Qdrant collection design
-- hybrid retrieval fusion
-- reranking before generation
-- source attribution in responses
-
-### Recommended Stack
-
-- Qdrant free tier or local Docker
-- FastEmbed or sentence-transformers for free embeddings
-- cross-encoder reranker on CPU for local demos
-
-### Files Most Likely To Change
-
-- `backend/services/knowledge_base.py`
-- `knowledge_base/centaurus_ops_manual.md`
-- `requirements.txt`
-- `backend/main.py`
-
-### Resume Signal
-
-- RAG
-- vector search
-- hybrid retrieval
-- reranking
-- retrieval engineering
-
-### Exit Criteria
-
-- retrieval is no longer section-only
-- answers can cite source chunks
-- retrieval quality is measurably better than the current baseline
-
-## Phase 2: Graph Context Layer
+**Timeline:** Weeks 1–3
 
 ### Goal
 
-Add relationship-aware reasoning without replacing the transactional store.
+Replace section-only Markdown retrieval with hybrid search and establish a measurable quality baseline on day one.
 
 ### Build
 
-- Neo4j schema for authors, books, contracts, royalty events, publications, tickets, and communications
-- sync path from relational demo data into graph nodes and edges
-- graph expansion around relevant entities
-- combined vector evidence plus graph evidence assembly
+- Semantic/recursive chunking with metadata (`section`, `category`, `source`, `chunk_id`)
+- Qdrant collection (Docker local; optional free cloud cluster)
+- Free embeddings: FastEmbed or `sentence-transformers`
+- BM25 + dense hybrid fusion
+- CPU cross-encoder reranking
+- `sources[]` citations on `/chat` responses
+- Golden dataset: 25–40 Q&A pairs in `tests/evals/golden.json`
+- RAGAS baseline script
 
-### Recommended Stack
+### Files
 
-- Neo4j AuraDB Free or local Neo4j
-- simple sync script first
-- GraphRAG composition in Python before full agentization
-
-### Files Most Likely To Change
-
-- new `backend/services/graph_retriever.py`
-- new sync scripts under `scripts/`
-- `TECHNICAL_ARCHITECTURE.md`
-- `docs/IMPLEMENTATION_HANDOFF.md`
-
-### Resume Signal
-
-- knowledge graph
-- Neo4j
-- GraphRAG
-- relationship reasoning
+- New: `backend/services/retrievers/chunker.py`, `embeddings.py`, `qdrant_retriever.py`
+- Modify: `backend/services/knowledge_base.py`, `backend/models.py`, `backend/main.py`, `requirements.txt`
 
 ### Exit Criteria
 
-- at least one query path uses graph context
-- the graph layer answers a class of question the relational path cannot answer cleanly
+- Hybrid retrieval runs end-to-end; mock mode still works without Qdrant
+- At least 5 golden cases score higher than current baseline
+- Responses include source citations
 
-## Phase 3: Agent Orchestration
+### Resume Signal
+
+RAG · hybrid search · reranking · vector DB · retrieval evaluation
+
+---
+
+## Wave 2: Observability
+
+**Timeline:** Week 4
 
 ### Goal
 
-Move from linear control flow to explicit stateful orchestration.
+Make every request debuggable before adding graph and agent complexity.
 
 ### Build
 
-- LangGraph supervisor
-- specialist agents for identity, publishing, royalty, knowledge, and escalation
-- explicit graph state object
-- durable checkpoints for reviewer interrupts
-- parallel evidence gathering where helpful
+- Langfuse OSS (Docker) or OpenTelemetry spans
+- Instrument: classify → identity → retrieve → rerank → generate → escalate
+- Correlate traces with `query_logs`
+- Debug panel or documented Langfuse UI walkthrough
 
-### Recommended Stack
+### Files
 
-- LangGraph
-- existing service functions reused as tools or nodes
-- FastAPI remains the API surface
-
-### Files Most Likely To Change
-
-- `backend/main.py`
-- new `backend/agents/` package
-- existing service modules refactored into node-friendly functions
-
-### Resume Signal
-
-- LangGraph
-- multi-agent systems
-- state machines
-- human-in-the-loop orchestration
+- New: `backend/telemetry/tracing.py`, `docker/langfuse-compose.yml` (optional)
+- Modify: `backend/main.py`, service modules, `README.md`
 
 ### Exit Criteria
 
-- the main request path is graph-driven
-- at least three specialist agents run through a supervisor
-- reviewer interrupts are first-class instead of bolted on
+- A bad answer can be diagnosed from trace + retrieved chunks + scores
+- Latency per stage is visible
 
-## Phase 4: Human Feedback Loop
+### Resume Signal
+
+LLM observability · distributed tracing · production debugging
+
+---
+
+## Wave 3: Knowledge Graph + GraphRAG Lite
+
+**Timeline:** Weeks 5–6
 
 ### Goal
 
-Turn reviewer actions into a usable learning signal.
+Add relationship-aware context for questions the vector layer cannot answer cleanly.
 
 ### Build
 
-- decision logging beyond identity review
-- answer overrides
-- correction reasons
-- reviewer preference capture
-- reusable feedback dataset
+- Neo4j AuraDB Free or local Docker
+- Schema: `Author`, `Book`, `Contract`, `RoyaltyEvent`, `Publication`
+- Sync script from Supabase seed data
+- `graph_retriever.py`: entity link → 2-hop expansion → evidence bundle
+- Combined vector + graph context assembly
 
-### Recommended Stack
+### Files
 
-- Supabase tables first
-- lightweight admin UI expansion in `web/`
-
-### Files Most Likely To Change
-
-- `supabase/schema.sql`
-- `web/index.html`
-- `web/app.js`
-- `backend/main.py`
-
-### Resume Signal
-
-- HITL systems
-- feedback loops
-- reviewer workflow
-- preference learning foundation
+- New: `backend/services/graph_retriever.py`, `scripts/sync_graph.py`
+- Modify: `backend/main.py` or future agent knowledge node
 
 ### Exit Criteria
 
-- reviewer decisions are persisted with rationale
-- the system can distinguish raw model answer from approved final answer
+- ≥ 5 golden cases improve with graph context (document which ones)
+- Graph evidence appears in debug/trace output
 
-## Phase 5: Evaluation And Observability
+### Resume Signal
+
+Neo4j · knowledge graph · GraphRAG · multi-hop reasoning
+
+---
+
+## Wave 4: LangGraph Multi-Agent
+
+**Timeline:** Weeks 7–9
 
 ### Goal
 
-Measure quality and inspect failures like a platform team would.
+Replace linear `/chat` control flow with explicit supervisor orchestration.
 
 ### Build
 
-- DeepEval and RAGAS suites
-- golden queries plus synthetic datasets
-- Langfuse tracing
-- OpenTelemetry spans for retrieval, generation, and agent execution
-- groundedness, escalation rate, and resolution rate dashboards
+- LangGraph supervisor + specialist agents:
+  - Identity → `identity_unifier.py`
+  - Publishing → `data_retriever.py`
+  - Royalty → `data_retriever.py`
+  - Knowledge → retrieval + graph
+  - Escalation → `confidence_scorer.py`
+- Shared state object (intent, identity, evidence, confidence, reviewer flags)
+- Checkpointing for reviewer interrupts
+- `/chat` response contract unchanged
 
-### Recommended Stack
+### Files
 
-- DeepEval
-- RAGAS
-- Langfuse OSS
-- OpenTelemetry
-
-### Files Most Likely To Change
-
-- new `tests/evals/`
-- `requirements.txt`
-- `backend/main.py`
-- new `backend/telemetry/`
-
-### Resume Signal
-
-- evals
-- LLM observability
-- tracing
-- AI quality gates
+- New: `backend/agents/supervisor.py`, `backend/agents/state.py`, agent modules
+- Modify: `backend/main.py`, existing services (extract tool-friendly functions)
 
 ### Exit Criteria
 
-- there is a repeatable eval suite
-- traces show the end-to-end request path
-- regressions can be detected before shipping
+- Main path is graph-driven
+- ≥ 3 agents invoked per complex query (visible in trace)
+- Reviewer interrupt is a graph node, not a side effect
 
-## Phase 6: Deployment And Cloud Portability
+### Resume Signal
+
+LangGraph · multi-agent systems · supervisor pattern · state machines
+
+---
+
+## Wave 5: Human Feedback + Self-RAG Lite
+
+**Timeline:** Weeks 10–11
 
 ### Goal
 
-Package the platform cleanly and leave an obvious path to managed infrastructure.
+Turn reviewer actions into durable learning signals and stop bad retrieval from reaching users.
 
 ### Build
 
-- Docker Compose for local full-stack
-- cloud preview deploy target
-- environment separation
-- optional Terraform skeleton for future managed rollout
+- `reviewer_decisions` table: original answer, approved answer, rationale, sources
+- Admin UI for answer review (extend `web/`)
+- Self-RAG lite in LangGraph:
+  - Grade each retrieved doc
+  - Skip/regenerate when all docs irrelevant
+  - One retry max, then escalate
 
-### Recommended Stack
+### Files
 
-- Docker Compose first
-- Cloud Run preview if desired
-- future AWS ECS or GCP managed rollout later
-
-### Resume Signal
-
-- Docker
-- cloud-native deployment
-- infrastructure portability
+- Modify: `supabase/schema.sql`, `web/*`, `backend/agents/*`
 
 ### Exit Criteria
 
-- one command or one compose file can boot the core services
-- deployment docs are stable and repeatable
+- Reviewer can approve/edit with rationale stored
+- Self-RAG prevents at least 3 golden-set bad retrieval cases from reaching user
 
-## Stretch Phases
+### Resume Signal
 
-These are valuable, but only after the six core phases above are real:
+HITL · feedback loops · Self-RAG · adaptive retrieval
 
-- MCP server surface for external AI clients
-- model gateway and provider routing
-- prompt optimization
-- guardrails and PII middleware
-- proactive event-driven workflows
+---
 
-## What Not To Prioritize Early
+## Wave 6: Evaluation Platform
 
-- Kafka or heavy event buses before retrieval is strong
-- Kubernetes before the platform has evals and observability
-- fine-tuning before the retrieval, feedback, and eval stack exists
-- exotic multi-agent patterns before a basic LangGraph supervisor is shipping
+**Timeline:** Week 12
+
+### Goal
+
+Prove quality with repeatable metrics, not anecdotes.
+
+### Build
+
+- DeepEval + RAGAS CI runner
+- Metrics endpoint: resolution rate, escalation rate, groundedness, latency
+- Regression gate in CI (faithfulness drop > 5% fails)
+- Optional: 5 hand-written prompt-injection security cases
+
+### Files
+
+- New: `tests/evals/run.py`, `tests/evals/report.py`
+- Modify: `requirements.txt`, GitHub Actions (optional)
+
+### Exit Criteria
+
+- `python -m tests.evals.run` produces a report artifact
+- You can intentionally fail a regression and explain why
+
+### Resume Signal
+
+RAGAS · DeepEval · LLMOps · quality gates
+
+---
+
+## Wave 7: Platform Hardening
+
+**Timeline:** Week 13
+
+### Goal
+
+Package for local full-stack runs and safe model routing.
+
+### Build
+
+- LiteLLM gateway (OpenAI + Ollama/Groq dev fallback)
+- Presidio PII scrubber on user input
+- `docker-compose.yml`: api + qdrant + neo4j + langfuse
+- Profiles: `mock`, `local`, `cloud-preview`
+
+### Exit Criteria
+
+- `docker compose up` boots core stack
+- PII in test input is redacted before LLM call
+
+### Resume Signal
+
+AI gateway · PII safety · Docker · production packaging
+
+---
+
+## Wave 8: MCP + Cloud Preview
+
+**Timeline:** Week 14
+
+### Goal
+
+Expose Centaurus as composable infrastructure and ship a public demo.
+
+### Build
+
+- MCP server tools: `search_knowledge`, `resolve_identity`, `get_author_record`, `escalate`
+- GCP Cloud Run deploy (free tier)
+- Demo GIF or short screen recording in README
+
+### Exit Criteria
+
+- Claude Desktop or Cursor can call ≥ 1 MCP tool against local server
+- Public URL serves `/health` and `/chat`
+
+### Resume Signal
+
+MCP · cloud deployment · composable AI infrastructure
+
+---
+
+## Deferred (Explicit Non-Goals)
+
+- Mem0 / episodic memory
+- DSPy automatic prompt optimization
+- Microsoft GraphRAG community detection
+- PyRIT full red-team framework
+- A2A protocol / multi-tenant SaaS
+- Document OCR / contract intelligence
+- Knowledge governance / audit compliance layer
+- Kafka · Kubernetes · fine-tuning
+
+Revisit only after Waves 1–8 exit criteria are met.
+
+---
+
+## Free-Tier Defaults
+
+| Component | Default |
+|-----------|---------|
+| Embeddings | FastEmbed / sentence-transformers |
+| Vector DB | Qdrant Docker |
+| Graph | Neo4j AuraDB Free |
+| LLM dev | Mock + Groq free / Ollama |
+| Reranker | `cross-encoder/ms-marco-MiniLM-L-6-v2` |
+| Observability | Langfuse OSS |
+| Evals | RAGAS + DeepEval local |
+| Deploy | Docker Compose → Cloud Run |
+
+---
 
 ## Target Outcome
 
-The finished Centaurus story should read clearly:
-
-Centaurus is a publishing operations knowledge platform that combines hybrid RAG, graph context, multi-agent orchestration, reviewer feedback, evaluation, and observability in a free-tier-friendly architecture that can later scale to managed cloud infrastructure.
+Centaurus is a publishing operations knowledge platform that combines **hybrid RAG, graph context, LangGraph agents, human review, eval-driven quality gates, observability, and MCP** — built incrementally with metrics proving each layer works.

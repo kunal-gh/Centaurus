@@ -53,6 +53,7 @@ This repo focuses on the signals that matter most for AI engineering roles in 20
 
 The implementation roadmap for that path is documented in:
 
+- [`docs/STRATEGIC_EVALUATION.md`](docs/STRATEGIC_EVALUATION.md) — plan comparison and honest scope decisions
 - [`TECHNICAL_ARCHITECTURE.md`](TECHNICAL_ARCHITECTURE.md)
 - [`docs/ROADMAP.md`](docs/ROADMAP.md)
 - [`docs/IMPLEMENTATION_HANDOFF.md`](docs/IMPLEMENTATION_HANDOFF.md)
@@ -146,12 +147,16 @@ CENTAURUS_MOCK_MODE=
 
 ## Near-Term Roadmap
 
-- Phase 1: semantic chunking, embeddings, Qdrant hybrid retrieval, reranking
-- Phase 2: Neo4j knowledge graph and GraphRAG context assembly
-- Phase 3: LangGraph supervisor plus identity, publishing, royalty, and escalation agents
-- Phase 4: reviewer feedback capture and preference-aware behavior
-- Phase 5: DeepEval, RAGAS, Langfuse, and OpenTelemetry instrumentation
-- Phase 6: Dockerized deployment with a free-tier-friendly cloud preview path
+- Wave 1: hybrid Qdrant retrieval, reranking, citations, RAGAS golden-set baseline
+- Wave 2: Langfuse / OpenTelemetry tracing across the full request path
+- Wave 3: Neo4j graph layer and GraphRAG-lite context assembly
+- Wave 4: LangGraph supervisor with identity, publishing, royalty, knowledge, and escalation agents
+- Wave 5: reviewer feedback loop and Self-RAG lite (adaptive retrieval grading)
+- Wave 6: DeepEval + RAGAS CI with regression gates
+- Wave 7: LiteLLM gateway, Presidio PII scrubbing, Docker Compose full stack
+- Wave 8: MCP server surface and Cloud Run preview deploy
+
+Full rationale: [`docs/STRATEGIC_EVALUATION.md`](docs/STRATEGIC_EVALUATION.md)
 
 ## Screens And Diagrams
 

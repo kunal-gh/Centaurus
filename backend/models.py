@@ -26,6 +26,8 @@ class ChatResponse(BaseModel):
     reason: Optional[str] = None
     author_found: bool = False
     books_found: int = 0
+    sources: Optional[list[dict]] = None
+
 
 
 class IdentityRequest(BaseModel):

@@ -4,26 +4,30 @@
 
 This document is the continuation guide for the next development session. It records the chosen architecture path, the current repo state, the recommended build order, and the lowest-risk file-level sequence for future work.
 
-## Chosen Strategy
+## Chosen Strategy (v2 — revised)
 
-Build Centaurus as a foundation-first AI platform:
+Build Centaurus as an **8-wave hybrid** (see [`STRATEGIC_EVALUATION.md`](STRATEGIC_EVALUATION.md)):
 
-1. strengthen retrieval
-2. add graph context
-3. introduce LangGraph agents
-4. expand reviewer feedback
-5. add evals and observability
-6. package deployment cleanly
+1. **Wave 1:** hybrid RAG + golden eval baseline (same sprint)
+2. **Wave 2:** observability / tracing (moved up from old Phase 5)
+3. **Wave 3:** Neo4j + GraphRAG lite
+4. **Wave 4:** LangGraph supervisor + specialist agents
+5. **Wave 5:** reviewer feedback expansion + Self-RAG lite
+6. **Wave 6:** DeepEval + RAGAS CI + regression gates
+7. **Wave 7:** LiteLLM gateway + Presidio PII + Docker Compose
+8. **Wave 8:** MCP server + Cloud Run preview
 
-This sequence keeps the project honest, cost-aware, and aligned with current AI engineering hiring signals.
+Cherry-picked from Plan 4: LiteLLM, MCP, Self-RAG lite, Presidio.  
+Deferred from Plan 1/4: Mem0, DSPy, MS GraphRAG, PyRIT, A2A, document OCR, knowledge governance.
 
 ## Why This Order
 
-- The repo already has a working control plane, so the best ROI comes from upgrading the knowledge system first.
-- GraphRAG only matters after retrieval quality is respectable.
-- Multi-agent orchestration is stronger when it coordinates good tools instead of compensating for weak foundations.
-- Evals and observability are most useful once retrieval and orchestration exist.
-- Heavy cloud work should come after the platform is worth operating.
+- The repo already has a working control plane — upgrade retrieval first, but **measure it immediately** with a golden set.
+- **Observability in Wave 2** (not Wave 5) so every later upgrade is debuggable.
+- GraphRAG only after vector retrieval has a baseline score to beat.
+- Agents coordinate existing services as tools — no rewrite of business logic.
+- Self-RAG lite after agents exist (it's a graph node, not a standalone feature).
+- MCP and cloud deploy last — they package a working platform, not a skeleton.
 
 ## Current Repo State
 
@@ -51,17 +55,19 @@ This sequence keeps the project honest, cost-aware, and aligned with current AI 
 
 ## Recommended Next Session
 
-### Priority 1
+### Priority 1 — Wave 1 only
 
-Implement Phase 1 retrieval upgrades without breaking the public API.
+Implement retrieval upgrades **and** the eval baseline in the same sprint. Do not start Neo4j or LangGraph until Wave 1 exit criteria pass.
 
 ### Concrete Tasks
 
 - add chunk metadata structure
 - move from header-only chunking to semantic or recursive chunking
 - create a Qdrant-backed retriever behind the existing `knowledge_base` interface
-- preserve mock mode behavior
-- return citations or source labels in debug output first
+- preserve mock mode behavior (keyword fallback when Qdrant unavailable)
+- add `sources[]` to `ChatResponse`
+- create `tests/evals/golden.json` with 25–40 Q&A pairs
+- add `tests/evals/run_baseline.py` with RAGAS faithfulness + answer relevancy
 
 ### New Files To Add
 
@@ -76,47 +82,61 @@ Implement Phase 1 retrieval upgrades without breaking the public API.
 - `requirements.txt`
 - `TECHNICAL_ARCHITECTURE.md`
 
-## Phase-By-Phase Build Notes
+## Wave-By-Wave Build Notes
 
-## Phase 1 Notes
+## Wave 1 Notes
 
 - Keep `search_knowledge_base()` as the stable interface at first.
 - Introduce a provider switch so local demo mode still works with zero external services.
 - Store chunk metadata like `section`, `category`, and `source`.
 - Avoid hard-coding paid embedding providers.
 
-## Phase 2 Notes
+## Wave 2 Notes
+
+- Instrument spans before adding Neo4j — you need traces to debug graph queries later.
+- Langfuse OSS via Docker is the default; OTEL export is acceptable if Langfuse is too heavy initially.
+- Store `trace_id` on `query_logs` rows for correlation.
+
+## Wave 3 Notes
 
 - Keep Supabase as the system of record for transactional data.
 - Treat Neo4j as a reasoning layer, not the primary write path.
 - Start with one sync script instead of continuous ingestion.
 - Add only the entities needed for real question improvement.
 
-## Phase 3 Notes
+## Wave 4 Notes
 
 - Reuse current service functions as tools or nodes where possible.
 - Move orchestration first, not every individual function.
 - Preserve `/chat` contract so the UI does not break.
 - Add checkpointing only when a reviewer interrupt is introduced.
 
-## Phase 4 Notes
+## Wave 5 Notes
+
+- Self-RAG lite: grade docs with a simple relevance classifier (even keyword + embedding threshold in mock mode).
+- Expand reviewer UI before building a separate admin app.
+
+## Wave 6 Notes
 
 - Expand `identity_mappings` into a more general reviewer decision model or add a new table.
 - Capture the final approved answer and rationale.
 - Add reviewer notes to the browser UI before building a separate admin app.
 
-## Phase 5 Notes
+- Golden dataset should already exist from Wave 1 — extend it here with edge cases.
+- Add CI regression gate: fail if faithfulness drops > 5% vs committed baseline report.
+- Track groundedness, escalation rate, resolution rate, latency p50/p95.
 
-- Start with a golden dataset in the repo.
-- Then add synthetic cases for edge conditions.
-- Instrument spans for intent, retrieval, graph query, generation, and escalation.
-- Track at least groundedness, escalation rate, and latency.
+## Wave 7 Notes
 
-## Phase 6 Notes
+- LiteLLM routes OpenAI in prod, Ollama/Groq in dev — keep mock mode bypassing gateway.
+- Presidio on input only first; output filtering is optional.
+- `docker-compose.yml` is the reference environment before any Terraform.
 
-- Create a local `docker-compose.yml` before Terraform.
-- Keep local Docker the reference environment.
-- Treat cloud deployment as a packaging exercise, not a feature phase.
+## Wave 8 Notes
+
+- MCP server wraps existing service functions — no duplicate business logic.
+- Cloud Run: single container + external Qdrant/Neo4j free tiers or compose on a small VM.
+- Record a 30–60s demo GIF for README.
 
 ## Free-Tier Defaults
 

@@ -9,10 +9,39 @@ function setTab(name) {
   }
 }
 
-function addBubble(role, text) {
+function addBubble(role, text, sources = null) {
   const div = document.createElement("div");
   div.className = `bubble ${role === "user" ? "user" : "bot"}`;
-  div.textContent = text;
+  
+  const textEl = document.createElement("div");
+  textEl.className = "text";
+  if (text.includes("**")) {
+    textEl.innerHTML = text.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+  } else {
+    textEl.textContent = text;
+  }
+  div.appendChild(textEl);
+
+  if (sources && sources.length > 0) {
+    const sourcesEl = document.createElement("div");
+    sourcesEl.className = "bubble-sources";
+    
+    const title = document.createElement("div");
+    title.className = "sources-title";
+    title.textContent = "Sources & Citations:";
+    sourcesEl.appendChild(title);
+
+    const list = document.createElement("ul");
+    for (const src of sources) {
+      const li = document.createElement("li");
+      const scorePct = ((src.score ?? 0) * 100).toFixed(0);
+      li.innerHTML = `<strong>${src.section ?? "Policy"}</strong> <span class="score">(${scorePct}% relevance)</span> <span class="file">${src.source ?? ""}</span>`;
+      list.appendChild(li);
+    }
+    sourcesEl.appendChild(list);
+    div.appendChild(sourcesEl);
+  }
+
   $("chatlog").appendChild(div);
   $("chatlog").scrollTop = $("chatlog").scrollHeight;
 }
@@ -171,7 +200,7 @@ $("chatForm").addEventListener("submit", async (e) => {
 
   try {
     const data = await postJson("/chat", payload);
-    addBubble("bot", data.response ?? "(no response)");
+    addBubble("bot", data.response ?? "(no response)", data.sources);
     setMeta(data);
   } catch (e) {
     addBubble("bot", `Error: ${String(e)}`);

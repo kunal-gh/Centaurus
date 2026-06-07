@@ -1,0 +1,152 @@
+[
+  {
+    "query": "How long does it take to get my book published?",
+    "expected_section": "Publishing Timelines",
+    "expected_chunk_id": "sec_publishing_timelines",
+    "ideal_answer": "Publishing standard timelines range from 45 to 60 days following the submission of the final manuscript."
+  },
+  {
+    "query": "Can we speed up the publishing process?",
+    "expected_section": "Publishing Timelines",
+    "expected_chunk_id": "sec_publishing_timelines",
+    "ideal_answer": "Expedited tracks are available to shorten the timeline if the queue permits and all assets are ready."
+  },
+  {
+    "query": "How do I know when my book is live?",
+    "expected_section": "Release Status",
+    "expected_chunk_id": "sec_release_status",
+    "ideal_answer": "A book is live when it appears on its assigned retail and distribution channels. You will receive first live links via email."
+  },
+  {
+    "query": "My release date has passed and I don't see my book on stores. What should I check?",
+    "expected_section": "Release Status",
+    "expected_chunk_id": "sec_release_status",
+    "ideal_answer": "Verify metadata sync status, retailer propagation delay, and complete any remaining checklist items."
+  },
+  {
+    "query": "When are royalties calculated?",
+    "expected_section": "Royalty Reports And Payments",
+    "expected_chunk_id": "sec_royalty_reports_and_payments",
+    "ideal_answer": "Royalties are calculated quarterly in January, April, July, and October."
+  },
+  {
+    "query": "How long does it take to get paid my royalties after a quarter closes?",
+    "expected_section": "Royalty Reports And Payments",
+    "expected_chunk_id": "sec_royalty_reports_and_payments",
+    "ideal_answer": "Royalty payments are processed within 60 days of the close of each quarter."
+  },
+  {
+    "query": "Why would my royalty payment be placed on hold?",
+    "expected_section": "Royalty Reports And Payments",
+    "expected_chunk_id": "sec_royalty_reports_and_payments",
+    "ideal_answer": "Common causes of royalty holds include incomplete bank information, compliance audits, or disputed calculations."
+  },
+  {
+    "query": "What are the possible royalty status values?",
+    "expected_section": "Royalty Reports And Payments",
+    "expected_chunk_id": "sec_royalty_reports_and_payments",
+    "ideal_answer": "Royalty statuses include pending, processing, paid, and on_hold."
+  },
+  {
+    "query": "How do I log into the author workspace?",
+    "expected_section": "Workspace Access",
+    "expected_chunk_id": "sec_workspace_access",
+    "ideal_answer": "Use the onboarding link sent during setup along with your registered email address."
+  },
+  {
+    "query": "I cannot sign into my author profile dashboard. What should I do first?",
+    "expected_section": "Workspace Access",
+    "expected_chunk_id": "sec_workspace_access",
+    "ideal_answer": "Reset your password and check that the email matches the registered address on your profile."
+  },
+  {
+    "query": "Who should I email if my author workspace login still fails after resetting password?",
+    "expected_section": "Workspace Access",
+    "expected_chunk_id": "sec_workspace_access",
+    "ideal_answer": "Contact support at ops@centaurus.dev with your email address and book title."
+  },
+  {
+    "query": "What is included in the Launch Sprint program?",
+    "expected_section": "Service Programs",
+    "expected_chunk_id": "sec_service_programs",
+    "ideal_answer": "The Launch Sprint covers category positioning, launch coordination, and marketplace visibility support during the release window."
+  },
+  {
+    "query": "What does the Media Relay service cover?",
+    "expected_section": "Service Programs",
+    "expected_chunk_id": "sec_service_programs",
+    "ideal_answer": "Media Relay provides press outreach, publicity asset packaging, and post-launch communication support."
+  },
+  {
+    "query": "Can you explain what the Awards Circuit service program does?",
+    "expected_section": "Service Programs",
+    "expected_chunk_id": "sec_service_programs",
+    "ideal_answer": "Awards Circuit assists in coordinating submissions to selected literary prizes based on genre and eligibility."
+  },
+  {
+    "query": "How long does it take to ship physical author copies after my book goes live?",
+    "expected_section": "Author Copies",
+    "expected_chunk_id": "sec_author_copies",
+    "ideal_answer": "Physical author copies are dispatched within 7 to 10 business days of the book release."
+  },
+  {
+    "query": "Where do I find tracking details for my author copies?",
+    "expected_section": "Author Copies",
+    "expected_chunk_id": "sec_author_copies",
+    "ideal_answer": "Tracking numbers are sent to your registered email address after the shipment is booked."
+  },
+  {
+    "query": "It has been over a month and my author copies haven't arrived. What's next?",
+    "expected_section": "Author Copies",
+    "expected_chunk_id": "sec_author_copies",
+    "ideal_answer": "If copies haven't arrived within 30 days of dispatch, verify the address and courier status."
+  },
+  {
+    "query": "How frequently is sales reporting data updated?",
+    "expected_section": "Sales Reports",
+    "expected_chunk_id": "sec_sales_reports",
+    "ideal_answer": "Sales data updates on a rolling basis but might lag behind real-time store events."
+  },
+  {
+    "query": "When will I get my monthly sales report?",
+    "expected_section": "Sales Reports",
+    "expected_chunk_id": "sec_sales_reports",
+    "ideal_answer": "Consolidated monthly sales reports are normally emailed during the first week of the month."
+  },
+  {
+    "query": "Are the sales numbers shown in the platform real-time?",
+    "expected_section": "Sales Reports",
+    "expected_chunk_id": "sec_sales_reports",
+    "ideal_answer": "Some numbers are near-real-time platform estimates, while others are settled reporting figures."
+  },
+  {
+    "query": "When should we escalate a support ticket to human operators?",
+    "expected_section": "Escalation Policy",
+    "expected_chunk_id": "sec_escalation_policy",
+    "ideal_answer": "Escalate to human review if identity is unclear, payment safety is at risk, or system evidence is weak."
+  },
+  {
+    "query": "Does the system guess when it's not sure of the answer?",
+    "expected_section": "Escalation Policy",
+    "expected_chunk_id": "sec_escalation_policy",
+    "ideal_answer": "No, the platform is designed to prefer safe escalation over speculative answers."
+  },
+  {
+    "query": "What is the timeline for book launch?",
+    "expected_section": "Publishing Timelines",
+    "expected_chunk_id": "sec_publishing_timelines",
+    "ideal_answer": "The standard timeline is 45 to 60 days from manuscript submission."
+  },
+  {
+    "query": "How do I get help with my login details for my book portal?",
+    "expected_section": "Workspace Access",
+    "expected_chunk_id": "sec_workspace_access",
+    "ideal_answer": "Try password reset first, then verify the email matches. If it fails, write to ops@centaurus.dev."
+  },
+  {
+    "query": "Tell me about the promotional programs available for books.",
+    "expected_section": "Service Programs",
+    "expected_chunk_id": "sec_service_programs",
+    "ideal_answer": "Available programs include Launch Sprint, Media Relay, and Awards Circuit."
+  }
+]

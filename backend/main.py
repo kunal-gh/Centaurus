@@ -217,8 +217,20 @@ async def chat(req: ChatRequest):
                     db_result["books"] = filtered
 
         kb_text, kb_relevance = None, 0.0
+        kb_sources = []
         if query_type == "kb_query" or not db_result["author"]:
-            kb_text, kb_relevance = knowledge_base.search_knowledge_base(req.message)
+            hybrid_results = knowledge_base.search_knowledge_base_hybrid(req.message, top_k=3)
+            if hybrid_results:
+                best_match = hybrid_results[0]
+                kb_text = best_match["text"]
+                kb_relevance = best_match["score"]
+                for res in hybrid_results:
+                    kb_sources.append({
+                        "chunk_id": res["metadata"].get("chunk_id"),
+                        "section": res["metadata"].get("section"),
+                        "source": res["metadata"].get("source"),
+                        "score": res["score"]
+                    })
 
         overall_confidence = confidence_scorer.calculate_confidence(
             intent_confidence=intent_conf,
@@ -256,6 +268,7 @@ async def chat(req: ChatRequest):
             escalated=False,
             author_found=db_result["author"] is not None,
             books_found=len(db_result["books"]),
+            sources=kb_sources if kb_sources else None,
         )
 
     except Exception as exc:

@@ -11,3 +11,15 @@ knowledge_base/kb_embeddings.json
 *.log
 dist/
 build/
+
+# Local databases and caches
+knowledge_base/qdrant_db/
+.env
+
+# Local evaluation reports
+tests/evals/baseline_report.json
+
+# Local scripts and candidates
+scripts/extract_frame.py
+upgrade_plan/
+
