@@ -45,3 +45,12 @@ class IdentityResponse(BaseModel):
     action: Literal["auto_link", "verify_manually", "create_new"]
     signals: list
     reasoning: str
+
+
+class ResolveRequest(BaseModel):
+    """Request schema for resolving escalated query reviews."""
+    query_log_id: str
+    approved_response: str
+    rationale: Optional[str] = None
+    reviewed_by: Optional[str] = None
+
