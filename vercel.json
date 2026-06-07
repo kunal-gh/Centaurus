@@ -3,11 +3,19 @@
   "cleanUrls": false,
   "builds": [
     {
+      "src": "api/index.py",
+      "use": "@vercel/python"
+    },
+    {
       "src": "web/**",
       "use": "@vercel/static"
     }
   ],
   "routes": [
+    {
+      "src": "^/(chat|identity/.*|admin/.*|health)$",
+      "dest": "/api/index.py"
+    },
     {
       "src": "^/$",
       "status": 302,
@@ -28,10 +36,6 @@
     },
     {
       "src": "^/app$",
-      "dest": "/web/index.html"
-    },
-    {
-      "src": "^/health$",
       "dest": "/web/index.html"
     }
   ]
