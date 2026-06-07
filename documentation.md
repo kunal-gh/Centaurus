@@ -78,8 +78,7 @@ bookleaf-ai-automation/
 ├── supabase/                        # Database schemas and seed data
 │   ├── schema.sql                   # SQL definition for Supabase Postgres schema
 │   └── seed.sql                     # Seed script populating base database state
-├── frontend/                        # Streamlit developer workspace
-│   └── chat_ui.py                   # Chat and trace UI for rapid developer testing
+
 ├── web/                             # Vercel static frontend application
 │   ├── index.html                   # HTML entry point for the Playground
 │   ├── styles.css                   # Brutalist layout styles
