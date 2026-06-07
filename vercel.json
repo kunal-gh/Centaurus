@@ -1,41 +1,31 @@
 {
   "version": 2,
   "cleanUrls": true,
-  "builds": [
+  "buildCommand": "echo 'Static build'",
+  "outputDirectory": "web",
+  "redirects": [
     {
-      "src": "web/**",
-      "use": "@vercel/static"
+      "source": "/",
+      "destination": "/app/",
+      "permanent": false
     }
   ],
-  "routes": [
+  "rewrites": [
     {
-      "src": "/",
-      "status": 302,
-      "headers": { "Location": "/app/" }
+      "source": "/app/styles.css",
+      "destination": "/styles.css"
     },
     {
-      "src": "/app/styles.css",
-      "dest": "/web/styles.css"
+      "source": "/app/app.js",
+      "destination": "/app.js"
     },
     {
-      "src": "/app/app.js",
-      "dest": "/web/app.js"
+      "source": "/app/",
+      "destination": "/index.html"
     },
     {
-      "src": "/app/",
-      "dest": "/web/index.html"
-    },
-    {
-      "src": "/app",
-      "dest": "/web/index.html"
-    },
-    {
-      "src": "/health",
-      "dest": "/web/index.html"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/web/$1"
+      "source": "/app",
+      "destination": "/index.html"
     }
   ]
 }
