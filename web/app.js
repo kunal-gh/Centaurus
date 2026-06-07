@@ -301,6 +301,7 @@ if (apiBaseInput) {
   apiBaseInput.addEventListener("input", (e) => {
     API_BASE = e.target.value.trim();
     localStorage.setItem("CENTAURUS_API_URL", API_BASE);
+    checkBackendHealth();
   });
 }
 
@@ -309,3 +310,27 @@ addBubble(
   "Centaurus is ready. Ask about launch status, royalties, workspace access, service programs, author copies, or sales. If confidence drops or the request needs a person, I’ll route it to review."
 );
 refreshAdmin();
+
+async function checkBackendHealth() {
+  const dot = $("backend-status-dot");
+  const text = $("backend-status-text");
+  if (!dot || !text) return;
+  
+  try {
+    const res = await getJson("/health");
+    if (res && res.status === "ok") {
+      dot.style.background = "#10b981";
+      dot.style.boxShadow = "0 0 8px rgba(16, 185, 129, 0.6)";
+      text.textContent = "Backend Connected";
+    } else {
+      throw new Error("Bad status");
+    }
+  } catch (err) {
+    dot.style.background = "#ef4444";
+    dot.style.boxShadow = "0 0 8px rgba(239, 68, 68, 0.6)";
+    text.textContent = "Backend Disconnected";
+  }
+}
+
+checkBackendHealth();
+setInterval(checkBackendHealth, 15000);
